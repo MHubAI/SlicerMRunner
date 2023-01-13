@@ -6,8 +6,7 @@ import vtk
 import slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
-
-
+import qt
 #
 # MRunner
 #
@@ -111,6 +110,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Called when the user opens the module the first time and the widget is initialized.
         """
+        logging.info('>>>>>>>> MRunnerWidget Setup')
         ScriptedLoadableModuleWidget.setup(self)
 
         # Load widget from .ui file (created by Qt Designer).
@@ -127,6 +127,8 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Create logic class. Logic implements all computations that should be possible to run
         # in batch mode, without a graphical user interface.
         self.logic = MRunnerLogic()
+        self.logic.logCallback = self.addLog
+        self.logic.resourcePath = self.resourcePath
 
         # Connections
 
@@ -138,9 +140,27 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # (in the selected parameter node).
         self.ui.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
+        #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
+        #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode)
         self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
         self.ui.invertOutputCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
-        self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
+        #self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
+        #self.ui.modelComboBox.connect(self.updateParameterNodeFromGUI)
+
+        # test dropdown
+        self.ui.modelComboBox.addItem("Thresholder Model")
+
+        # test table view
+        self.ui.modelTableWidget.setRowCount(2)
+        self.ui.modelTableWidget.setColumnCount(2)
+        self.ui.modelTableWidget.setColumnWidth(100, 200)
+        self.ui.modelTableWidget.setItem(0,0, qt.QTableWidgetItem("Name"))
+        self.ui.modelTableWidget.setItem(0,1, qt.QTableWidgetItem("Name"))
+        self.ui.modelTableWidget.setVisible(False)
+
+        # test list view
+        self.ui.modelListWidget.addItem("test")
+        self.ui.modelListWidget.setVisible(False)
 
         # Buttons
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
@@ -234,17 +254,22 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Update node selectors and sliders
         self.ui.inputSelector.setCurrentNode(self._parameterNode.GetNodeReference("InputVolume"))
         self.ui.outputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolume"))
-        self.ui.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
+        self.ui.outputSegmentationSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputSegmentation"))
+        #self.ui.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
         self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
         self.ui.invertOutputCheckBox.checked = (self._parameterNode.GetParameter("Invert") == "true")
 
         # Update buttons states and tooltips
-        if self._parameterNode.GetNodeReference("InputVolume") and self._parameterNode.GetNodeReference("OutputVolume"):
-            self.ui.applyButton.toolTip = "Compute output volume"
+        inputVolume = self._parameterNode.GetNodeReference("InputVolume")
+        if inputVolume:
+            self.ui.applyButton.toolTip = "Start segmentation"
             self.ui.applyButton.enabled = True
         else:
-            self.ui.applyButton.toolTip = "Select input and output volume nodes"
+            self.ui.applyButton.toolTip = "Select input volume nodes"
             self.ui.applyButton.enabled = False
+
+        if inputVolume:
+            self.ui.outputSegmentationSelector.baseName = inputVolume.GetName() + " segmentation"
 
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
@@ -264,9 +289,15 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetNodeReferenceID("OutputVolume", self.ui.outputSelector.currentNodeID)
         self._parameterNode.SetParameter("Threshold", str(self.ui.imageThresholdSliderWidget.value))
         self._parameterNode.SetParameter("Invert", "true" if self.ui.invertOutputCheckBox.checked else "false")
-        self._parameterNode.SetNodeReferenceID("OutputVolumeInverse", self.ui.invertedOutputSelector.currentNodeID)
+       #self._parameterNode.SetNodeReferenceID("OutputVolumeInverse", self.ui.invertedOutputSelector.currentNodeID)
 
         self._parameterNode.EndModify(wasModified)
+
+    def addLog(self, text):
+        """Append text to log window
+        """
+        self.ui.statusLabel.appendPlainText(text)
+        slicer.app.processEvents()  # force update
 
     def onApplyButton(self):
         """
@@ -274,15 +305,30 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         with slicer.util.tryWithErrorDisplay("Failed to compute results.", waitCursor=True):
 
+            # clear text field
+            self.ui.statusLabel.plainText = ''
+
+            # setup python requirements
+            self.logic.setupPythonRequirements()
+
+            # Create new segmentation node, if not selected yet
+            if not self.ui.outputSegmentationSelector.currentNode():
+                self.ui.outputSegmentationSelector.addNode()
+                self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)
+
             # Compute output
-            self.logic.process(self.ui.inputSelector.currentNode(), self.ui.outputSelector.currentNode(),
-                               self.ui.imageThresholdSliderWidget.value, self.ui.invertOutputCheckBox.checked)
+            self.logic.process(
+                self.ui.inputSelector.currentNode(), 
+                self.ui.outputSegmentationSelector.currentNode(),
+                self.ui.imageThresholdSliderWidget.value, 
+                self.ui.invertOutputCheckBox.checked
+            )
 
             # Compute inverted output (if needed)
-            if self.ui.invertedOutputSelector.currentNode():
-                # If additional output volume is selected then result with inverted threshold is written there
-                self.logic.process(self.ui.inputSelector.currentNode(), self.ui.invertedOutputSelector.currentNode(),
-                                   self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
+            #if self.ui.invertedOutputSelector.currentNode():
+            #    # If additional output volume is selected then result with inverted threshold is written there
+            #    self.logic.process(self.ui.inputSelector.currentNode(), self.ui.invertedOutputSelector.currentNode(),
+            #                       self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
 
 
 #
@@ -305,6 +351,9 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """
         ScriptedLoadableModuleLogic.__init__(self)
 
+        self.logCallback = None
+        self.resourcePath = None
+
     def setDefaultParameters(self, parameterNode):
         """
         Initialize parameter node with default settings.
@@ -314,7 +363,175 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         if not parameterNode.GetParameter("Invert"):
             parameterNode.SetParameter("Invert", "false")
 
-    def process(self, inputVolume, outputVolume, imageThreshold, invert=False, showResult=True):
+    def log(self, text):
+        logging.info(text)
+        if self.logCallback:
+            self.logCallback(text)
+
+    def setupPythonRequirements(self, upgrade=False):
+
+        # install python docker sdk
+        needToInstallDocker = False
+        try:
+            import docker
+        except ModuleNotFoundError as e:
+            needToInstallDocker = True
+        if needToInstallDocker:
+            self.log('Docker SDK for Python is required. Installing...')
+            slicer.util.pip_install('docker')
+
+        #TODO: check if docker was set up on OS
+
+    def runContainer(self, dir):
+        import os, time, docker, uuid
+        tid = str(uuid.uuid4())
+
+        print(f"[{tid}] THREAD: ", dir)
+        start_time = time.time()
+
+        # connect to docker socket
+        client = docker.from_env()
+
+        # list images
+        images_list = client.images.list()
+        print(f"[{tid}] found images: ")
+        for image in images_list:
+            print(f"[{tid}] > ", image.id, image.tags)
+
+        # get an image
+        image = client.images.get('leo/thresholder')
+        print(f"[{tid}] Get Thresholder Image")
+        print(f"[{tid}] > ", image.id)
+
+        # setup a container
+        container = client.containers.run(
+            image.id,
+            volumes = [
+                f"{dir}:/app/data/input_data",
+                f"{dir}:/app/data/output_data"
+            ],
+            detach=True
+        )
+
+        for line in container.logs(stream=True):
+            print(f"[{tid}]", line.strip())
+
+        #output = container.attach(stdout=True, stream=True, logs=True)
+
+        result = container.wait()
+        container.remove()
+
+        # scan temp dir for files
+        flst = os.listdir(dir)
+        print(f"[{tid}] FILES")
+        for f in flst:
+            print(f"[{tid}] >", f)
+
+        print(f"[{tid}] total time: ", round(time.time() - start_time))
+
+    def runContainerAsync(self, dir):
+        import threading
+
+        # start a thread (name: run-docker)
+        threading.Thread(target=self.runContainer, args=(dir,), name='run-docker').start()
+
+    def runContainerSync(self, image_tag, dir):
+        import os, docker
+
+        # connect to docker socket
+        client = docker.from_env()
+
+        # get image
+        image = client.images.get(image_tag)
+
+        # setup a container
+        container = client.containers.run(
+            image.id,
+            volumes = [
+                f"{dir}:/app/data/input_data",
+                f"{dir}:/app/data/output_data"
+            ],
+            detach=True
+        )
+
+        # print
+        for line in container.logs(stream=True):
+            print(f"docker> ", str(line.strip()))
+
+        # check files
+        flst = os.listdir(dir)
+        
+    def displaySegmentation(self, outputSegmentation, dir):
+
+        # clear output segmentation
+        outputSegmentation.GetSegmentation().RemoveAllSegments()
+
+        # Get color node with random colors
+        randomColorsNode = slicer.mrmlScene.GetNodeByID('vtkMRMLColorTableNodeRandom')
+        rgba = [0, 0, 0, 0]
+
+        # static
+        segmentName = "ThresholdedFG"
+        labelValue = 1
+        self.log(f"Importing {segmentName} (label: {labelValue})")
+        
+        # read output file
+        labelVolumePath = os.path.join(dir, 'output.nrrd')
+        if not os.path.exists(labelVolumePath):
+            print(f"ERROR: file not found {labelVolumePath}")
+
+        #
+        labelmapVolumeNode = slicer.util.loadLabelVolume(labelVolumePath, {"name": segmentName})
+
+        randomColorsNode.GetColor(labelValue, rgba)
+        segmentId = outputSegmentation.GetSegmentation().AddEmptySegment(segmentName, segmentName, rgba[0:3])
+        updatedSegmentIds = vtk.vtkStringArray()
+        updatedSegmentIds.InsertNextValue(segmentId)
+        
+        slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
+        #self.setTerminology(outputSegmentation, segmentName, segmentId)
+        slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
+
+    def buildImage(self, image_tag):
+        import docker
+
+        # connect to docker socket
+        client = docker.from_env()
+
+        # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
+        if not '/usr/local/bin' in os.environ["PATH"]:
+            self.log(f"Adding /usr/local/bin to PATH.")
+            os.environ["PATH"] += os.pathsep + '/usr/local/bin'
+
+        # build image
+        dockerDir = self.resourcePath(os.path.join('Dockerfiles', 'Thresholder'))
+        self.log(f"Building image {image_tag} from {dockerDir}.")
+        client.images.build(
+            path        =   dockerDir,
+            tag         =   image_tag,
+            buildargs   =   {
+                                'USER_ID': '1001',          # for mac, on linux use the current user's user and group id! 
+                                'GROUP_ID': '1001'
+                            },
+            platform    =   'linux/amd64'                   # required on M1 macs
+        )
+
+        self.log("Image build.")
+
+    def checkImage(self, image_tag):
+        import docker
+
+        # connect to docker socket
+        client = docker.from_env()
+
+        try:
+            client.images.get(image_tag)
+            return True
+        except Exception as e:
+            return False
+
+
+    def process(self, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -325,26 +542,63 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         :param showResult: show output volume in slice viewers
         """
 
-        if not inputVolume or not outputVolume:
-            raise ValueError("Input or output volume is invalid")
+        if not inputVolume:
+            raise ValueError("Input volume is invalid")
 
-        import time
+        import time, os
         startTime = time.time()
-        logging.info('Processing started')
+        self.log('Processing started')
+
+        # create a temp directory icer
+        tempDir = slicer.util.tempDirectory()
+
+        # input file
+        # TODO: rename to input.nrrd (requires update in aimi_alpha)
+        inputFile = os.path.join(tempDir, "image.nrrd")
+
+        # write selected input volume to temp directory
+        volumeStorageNode = slicer.mrmlScene.CreateNodeByClass("vtkMRMLVolumeArchetypeStorageNode")
+        volumeStorageNode.SetFileName(inputFile)
+        volumeStorageNode.UseCompressionOff()
+        volumeStorageNode.WriteData(inputVolume)
+        volumeStorageNode.UnRegister(None)
+
+        logging.info(f'ln> data {inputFile}')
+        logging.info(f"ln> input/output id: {inputVolume.GetID()}, {outputSegmentation.GetID()}")
+
+        # test
+        import os
+        stream = os.popen('echo $PATH')
+        output = stream.read()
+        print("path: ", output)
+        self.log(output)
+
+
+        # check / build image
+        image_tag = 'aimi/thresholder' # 'leo/thresholder'
+        if not self.checkImage(image_tag):
+            self.buildImage(image_tag)
+
+        # run container
+        self.runContainerSync(image_tag, tempDir)
+
+        # display segmentation
+        self.displaySegmentation(outputSegmentation, tempDir)
 
         # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        cliParams = {
-            'InputVolume': inputVolume.GetID(),
-            'OutputVolume': outputVolume.GetID(),
-            'ThresholdValue': imageThreshold,
-            'ThresholdType': 'Above' if invert else 'Below'
-        }
-        cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-        # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        slicer.mrmlScene.RemoveNode(cliNode)
+        if False:
+            cliParams = {
+                'InputVolume': inputVolume.GetID(),
+                'OutputVolume': outputVolume.GetID(),
+                'ThresholdValue': imageThreshold,
+                'ThresholdType': 'Above' if invert else 'Below'
+            }
+            cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
+            # We don't need the CLI module node anymore, remove it to not clutter the scene with it
+            slicer.mrmlScene.RemoveNode(cliNode)
 
         stopTime = time.time()
-        logging.info(f'Processing completed in {stopTime-startTime:.2f} seconds')
+        self.log(f'Processing completed in {stopTime-startTime:.2f} seconds x')
 
 
 #

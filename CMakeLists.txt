@@ -5,8 +5,8 @@ project(SlicerMHubRunner)
 #-----------------------------------------------------------------------------
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/SlicerMHubRunner")
-set(EXTENSION_CATEGORY "Examples")
-set(EXTENSION_CONTRIBUTORS "Leonard Nürnberg (AIM)")
+set(EXTENSION_CATEGORY "Segmentation")
+set(EXTENSION_CONTRIBUTORS "Leonard Nürnberg (AIM, MGB, UM)")
 set(EXTENSION_DESCRIPTION "This is an example of a simple extension")
 set(EXTENSION_ICONURL "https://www.example.com/Slicer/Extensions/SlicerMHubRunner.png")
 set(EXTENSION_SCREENSHOTURLS "https://www.example.com/Slicer/Extensions/SlicerMHubRunner/Screenshots/1.png")
