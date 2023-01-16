@@ -1,5 +1,5 @@
 import logging
-import os
+import os, json
 
 import vtk
 
@@ -145,10 +145,14 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
         self.ui.invertOutputCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         #self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
-        #self.ui.modelComboBox.connect(self.updateParameterNodeFromGUI)
+        self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
 
-        # test dropdown
-        self.ui.modelComboBox.addItem("Thresholder Model")
+        # load model names from repos and feed into dropdown
+        with open(self.resourcePath('Dockerfiles/repo.json')) as f:
+            repo = json.load(f)
+        model_names = list(map(lambda x: f"{x['name']} ({x['tag']})", repo['models']))
+
+        self.ui.modelComboBox.addItems(model_names)
 
         # test table view
         self.ui.modelTableWidget.setRowCount(2)
@@ -309,7 +313,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.statusLabel.plainText = ''
 
             # setup python requirements
-            self.logic.setupPythonRequirements()
+            # self.logic.setupPythonRequirements()
 
             # Create new segmentation node, if not selected yet
             if not self.ui.outputSegmentationSelector.currentNode():
@@ -367,6 +371,25 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         logging.info(text)
         if self.logCallback:
             self.logCallback(text)
+
+    def logProcessOutput(self, proc):
+        # Wait for the process to end and forward output to the log
+        from subprocess import CalledProcessError
+        while True:
+            try:
+                line = proc.stdout.readline()
+            except UnicodeDecodeError as e:
+                # Code page conversion happens because `universal_newlines=True` sets process output to text mode,
+                # and it fails because probably system locale is not UTF8. We just ignore the error and discard the string,
+                # as we only guarantee correct behavior if an UTF8 locale is used.
+                pass
+            if not line:
+                break
+            self.log(line.rstrip())
+        proc.wait()
+        retcode = proc.returncode
+        if retcode != 0:
+            raise CalledProcessError(retcode, proc.args, output=proc.stdout, stderr=proc.stderr)
 
     def setupPythonRequirements(self, upgrade=False):
 
@@ -429,37 +452,28 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         print(f"[{tid}] total time: ", round(time.time() - start_time))
 
-    def runContainerAsync(self, dir):
-        import threading
-
-        # start a thread (name: run-docker)
-        threading.Thread(target=self.runContainer, args=(dir,), name='run-docker').start()
 
     def runContainerSync(self, image_tag, dir):
-        import os, docker
+        
+        #
+        self.addDockerPath()
 
-        # connect to docker socket
-        client = docker.from_env()
+        #
+        import shutil
+        dockerExecPath = shutil.which('docker')
+        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
 
-        # get image
-        image = client.images.get(image_tag)
+        #
+        command  = [dockerExecPath, "run", "-t"]
+        command += ["--volume", f"{dir}:/app/data/input_data"]
+        command += ["--volume", f"{dir}:/app/data/output_data"]
+        command += [image_tag]
 
-        # setup a container
-        container = client.containers.run(
-            image.id,
-            volumes = [
-                f"{dir}:/app/data/input_data",
-                f"{dir}:/app/data/output_data"
-            ],
-            detach=True
-        )
 
-        # print
-        for line in container.logs(stream=True):
-            print(f"docker> ", str(line.strip()))
-
-        # check files
-        flst = os.listdir(dir)
+        # run
+        self.log("Running " + " ".join(command))
+        proc = slicer.util.launchConsoleProcess(command)
+        self.logProcessOutput(proc)
         
     def displaySegmentation(self, outputSegmentation, dir):
 
@@ -492,44 +506,67 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         #self.setTerminology(outputSegmentation, segmentName, segmentId)
         slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
 
-    def buildImage(self, image_tag):
-        import docker
-
-        # connect to docker socket
-        client = docker.from_env()
-
+    def addDockerPath(self):
         # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
         if not '/usr/local/bin' in os.environ["PATH"]:
             self.log(f"Adding /usr/local/bin to PATH.")
             os.environ["PATH"] += os.pathsep + '/usr/local/bin'
 
-        # build image
-        dockerDir = self.resourcePath(os.path.join('Dockerfiles', 'Thresholder'))
-        self.log(f"Building image {image_tag} from {dockerDir}.")
-        client.images.build(
-            path        =   dockerDir,
-            tag         =   image_tag,
-            buildargs   =   {
-                                'USER_ID': '1001',          # for mac, on linux use the current user's user and group id! 
-                                'GROUP_ID': '1001'
-                            },
-            platform    =   'linux/amd64'                   # required on M1 macs
-        )
+    def buildImage(self, image_tag):
+        #
+        self.addDockerPath()
 
+        #
+        dockerDir = self.resourcePath(os.path.join('Dockerfiles', 'Thresholder'))
+
+        #
+        import shutil
+        dockerExecPath = shutil.which('docker')
+        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
+
+        command =  [dockerExecPath, 'build']
+        command += ['-t', image_tag]
+        command += ['--build-arg', 'USER_ID=1001']
+        command += ['--build-arg', 'GROUP_ID=1001']
+       
+        # TODO: for Mac with M1 add platform
+        # command += ['--platform', 'linux/amd64']
+        # TODO: for linux add local user and group id
+
+        command += [dockerDir]
+
+        # run
+        self.log("Running " + " ".join(command))
+        proc = slicer.util.launchConsoleProcess(command)
+        self.logProcessOutput(proc)
         self.log("Image build.")
 
     def checkImage(self, image_tag):
-        import docker
+        #
+        self.addDockerPath()
 
-        # connect to docker socket
-        client = docker.from_env()
+        #
+        import shutil, subprocess
+        dockerExecPath = shutil.which('docker')
+        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
 
-        try:
-            client.images.get(image_tag)
-            return True
-        except Exception as e:
-            return False
+        #
+        command =  [dockerExecPath, 'images']
+        command += ['--format', '{{.Repository}}:{{.Tag}}']
 
+        # get list of images
+        images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
+
+        # search image
+        # TODO: we need to decide how to use the tagging system.
+        match = image_tag in images_lst
+
+        if not match:
+            for image in images_lst:
+                if image_tag == image.split(":")[0]:
+                    match = True
+
+        return match
 
     def process(self, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
         """
@@ -563,19 +600,15 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         volumeStorageNode.WriteData(inputVolume)
         volumeStorageNode.UnRegister(None)
 
-        logging.info(f'ln> data {inputFile}')
-        logging.info(f"ln> input/output id: {inputVolume.GetID()}, {outputSegmentation.GetID()}")
+        # image to run
+        image_tag = 'aimi/thresholder' # 'leo/thresholder'
 
-        # test
-        import os
-        stream = os.popen('echo $PATH')
-        output = stream.read()
-        print("path: ", output)
-        self.log(output)
-
+        # check
+        self.log("TEST CHECKING")
+        self.checkImage(image_tag)
+        return
 
         # check / build image
-        image_tag = 'aimi/thresholder' # 'leo/thresholder'
         if not self.checkImage(image_tag):
             self.buildImage(image_tag)
 
@@ -584,18 +617,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         # display segmentation
         self.displaySegmentation(outputSegmentation, tempDir)
-
-        # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        if False:
-            cliParams = {
-                'InputVolume': inputVolume.GetID(),
-                'OutputVolume': outputVolume.GetID(),
-                'ThresholdValue': imageThreshold,
-                'ThresholdType': 'Above' if invert else 'Below'
-            }
-            cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-            # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-            slicer.mrmlScene.RemoveNode(cliNode)
 
         stopTime = time.time()
         self.log(f'Processing completed in {stopTime-startTime:.2f} seconds x')
