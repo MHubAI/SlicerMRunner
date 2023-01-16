@@ -1,0 +1,9 @@
+{
+    "models": [
+        {
+            "name": "Thresholder",
+            "dockerfile": "Thresholder/",
+            "tag": "aimi/thresholder"
+        }
+    ]
+}

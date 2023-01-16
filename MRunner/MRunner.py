@@ -464,7 +464,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
 
         #
-        command  = [dockerExecPath, "run", "-t"]
+        command  = ['docker', "run", "-t"]
         command += ["--volume", f"{dir}:/app/data/input_data"]
         command += ["--volume", f"{dir}:/app/data/output_data"]
         command += [image_tag]
@@ -524,7 +524,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         dockerExecPath = shutil.which('docker')
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
 
-        command =  [dockerExecPath, 'build']
+        command =  ['docker', 'build']
         command += ['-t', image_tag]
         command += ['--build-arg', 'USER_ID=1001']
         command += ['--build-arg', 'GROUP_ID=1001']
@@ -551,7 +551,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
 
         #
-        command =  [dockerExecPath, 'images']
+        command =  ['docker', 'images']
         command += ['--format', '{{.Repository}}:{{.Tag}}']
 
         # get list of images
@@ -602,11 +602,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         # image to run
         image_tag = 'aimi/thresholder' # 'leo/thresholder'
-
-        # check
-        self.log("TEST CHECKING")
-        self.checkImage(image_tag)
-        return
 
         # check / build image
         if not self.checkImage(image_tag):
