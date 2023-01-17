@@ -267,7 +267,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.invertOutputCheckBox.checked = (self._parameterNode.GetParameter("Invert") == "true")
 
         # check if docker is installed
-        isDockerInstalled = self.logic.checkForDockerInstallation()
+        isDockerInstalled = self.logic.checkForDocker()
 
         # Update buttons states and tooltips
         inputVolume = self._parameterNode.GetNodeReference("InputVolume")
@@ -423,23 +423,35 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             self.log(f"Adding /usr/local/bin to PATH.")
             os.environ["PATH"] += os.pathsep + '/usr/local/bin'
 
+    def getDockerExecutable(self, verbose=True):
+        dockerExecPath = None
+        if os.name == 'nt': 
+            dockerExecPath = "docker" # for windows just set docker
+        else:
+            import shutil
+            self.addDockerPath()
+            dockerExecPath = shutil.which('docker')
+        if verbose:
+            self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
+        return dockerExecPath
 
-    def checkForDockerInstallation(self):
+    def checkForDocker(self):
         """
-        Docker is required on the system. This function checks wheather it was installed.
+        Docker is required on the system to be installed and running. This function gets the docker executable and calls docker info for detailed information on the docker installation. If docker is not installed, fetching the executable will fail on unix systems and return None (but not on windows).
         TODO: version requirements might be added after evaluation.
         """
 
         print("os: ", os.name)
-        return True
 
-        import shutil, subprocess, json
-        dockerExecPath = shutil.which('docker')
-        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
-        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
+        import subprocess, json        
+        dockerExecPath = self.getDockerExecutable()
+        
+        if dockerExecPath is None:
+            self.log("Docker executable not found in your system.\nPlease install docker to proceed.")
+            return False
 
         # run docker version
-        # command = ['docker', '--version']
+        # command = [dockerExecPath, '--version']
 
         # run docker info        
         command =  [dockerExecPath, 'info']
@@ -461,13 +473,11 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """Search available docker images. Returns true if the image is available. 
         """
         #
-        self.addDockerPath()
-
+        import subprocess
+        
         #
-        import shutil, subprocess
-        dockerExecPath = shutil.which('docker')
-        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
-        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
+        dockerExecPath = self.getDockerExecutable()
+        assert dockerExecPath is not None, "DockerExecPath is None."
 
         #
         command =  [dockerExecPath, 'images']
@@ -491,8 +501,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
     def buildImage(self, image_tag):
         """ Build a image.
         """
-        #
-        self.addDockerPath()
 
         # get docker directory from repo
         dockerDir = None
@@ -505,10 +513,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             # TODO: propagate and handle error
 
         #
-        import shutil
-        dockerExecPath = shutil.which('docker')
-        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
-        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
+        dockerExecPath = self.getDockerExecutable()
+        assert dockerExecPath is not None, "DockerExecPath is None."
 
         command =  [dockerExecPath, 'build']
         command += ['-t', image_tag]
@@ -532,16 +538,10 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """ Create and run a container of the specified image.
             NOTE: This code is blocking.
         """
+        #
+        dockerExecPath = self.getDockerExecutable()
+        assert dockerExecPath is not None, "DockerExecPath is None."
         
-        #
-        self.addDockerPath()
-
-        #
-        import shutil
-        dockerExecPath = shutil.which('docker')
-        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
-        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
-
         #
         command  = [dockerExecPath, "run", "-t"]
         command += ["--volume", f"{dir}:/app/data/input_data"]
