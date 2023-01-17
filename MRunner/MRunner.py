@@ -147,10 +147,13 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
 
-        # load model names from repos and feed into dropdown
+        # load repo definition and pass down to logic
         with open(self.resourcePath('Dockerfiles/repo.json')) as f:
-            repo = json.load(f)
-        model_names = list(map(lambda x: f"{x['name']} ({x['tag']})", repo['models']))
+            self.repo = json.load(f)
+            self.logic.repo = self.repo
+
+        # exract model names from repo definition and feed into dropdown
+        model_names = list(map(lambda x: f"{x['name']} ({x['tag']})", self.repo['models']))
 
         self.ui.modelComboBox.addItems(model_names)
 
@@ -360,6 +363,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         self.logCallback = None
         self.resourcePath = None
+        self.repo = None
 
 
     def setDefaultParameters(self, parameterNode):
@@ -412,6 +416,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         
         pass
 
+
     def addDockerPath(self):
         # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
         if not '/usr/local/bin' in os.environ["PATH"]:
@@ -428,12 +433,13 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         import shutil, subprocess, json
         dockerExecPath = shutil.which('docker')
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
+        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
 
         # run docker version
         # command = ['docker', '--version']
 
         # run docker info        
-        command =  ['docker', 'info']
+        command =  [dockerExecPath, 'info']
         command += ['--format', '{{json .}}']
 
         try:
@@ -447,6 +453,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         return True
 
+
     def checkImage(self, image_tag):
         """Search available docker images. Returns true if the image is available. 
         """
@@ -457,9 +464,10 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         import shutil, subprocess
         dockerExecPath = shutil.which('docker')
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
+        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
 
         #
-        command =  ['docker', 'images']
+        command =  [dockerExecPath, 'images']
         command += ['--format', '{{.Repository}}:{{.Tag}}']
 
         # get list of images
@@ -476,21 +484,30 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         return match
 
+
     def buildImage(self, image_tag):
         """ Build a image.
         """
         #
         self.addDockerPath()
 
-        #
-        dockerDir = self.resourcePath(os.path.join('Dockerfiles', 'Thresholder'))
+        # get docker directory from repo
+        dockerDir = None
+        for model in self.repo["models"]:
+            if model["tag"] == image_tag:
+                dockerDir = self.resourcePath(os.path.join('Dockerfiles', model["dockerfile"]))
+
+        if not os.path.isdir(dockerDir):
+            self.log(f"Cannot build image. Dockerfile for '{model['name']} ({image_tag})' not found at specified location '{dockerDir}'.")
+            # TODO: propagate and handle error
 
         #
         import shutil
         dockerExecPath = shutil.which('docker')
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
+        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
 
-        command =  ['docker', 'build']
+        command =  [dockerExecPath, 'build']
         command += ['-t', image_tag]
         command += ['--build-arg', 'USER_ID=1001']
         command += ['--build-arg', 'GROUP_ID=1001']
@@ -520,9 +537,10 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         import shutil
         dockerExecPath = shutil.which('docker')
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
+        if os.name == 'nt': dockerExecPath = "docker" # for windows just set docker.
 
         #
-        command  = ['docker', "run", "-t"]
+        command  = [dockerExecPath, "run", "-t"]
         command += ["--volume", f"{dir}:/app/data/input_data"]
         command += ["--volume", f"{dir}:/app/data/output_data"]
         command += [image_tag]

@@ -3,7 +3,7 @@
         {
             "name": "Thresholder",
             "dockerfile": "Thresholder/",
-            "tag": "aimi/thresholder"
+            "tag": "aimi/thresholder:latest"
         }
     ]
 }
