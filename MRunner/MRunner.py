@@ -430,6 +430,9 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         TODO: version requirements might be added after evaluation.
         """
 
+        print("os: ", os.name)
+        return True
+
         import shutil, subprocess, json
         dockerExecPath = shutil.which('docker')
         self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
