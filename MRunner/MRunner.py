@@ -263,9 +263,12 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
         self.ui.invertOutputCheckBox.checked = (self._parameterNode.GetParameter("Invert") == "true")
 
+        # check if docker is installed
+        isDockerInstalled = self.logic.checkForDockerInstallation()
+
         # Update buttons states and tooltips
         inputVolume = self._parameterNode.GetNodeReference("InputVolume")
-        if inputVolume:
+        if inputVolume and isDockerInstalled:
             self.ui.applyButton.toolTip = "Start segmentation"
             self.ui.applyButton.enabled = True
         else:
@@ -358,6 +361,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.logCallback = None
         self.resourcePath = None
 
+
     def setDefaultParameters(self, parameterNode):
         """
         Initialize parameter node with default settings.
@@ -367,10 +371,12 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         if not parameterNode.GetParameter("Invert"):
             parameterNode.SetParameter("Invert", "false")
 
+
     def log(self, text):
         logging.info(text)
         if self.logCallback:
             self.logCallback(text)
+
 
     def logProcessOutput(self, proc):
         # Wait for the process to end and forward output to the log
@@ -391,69 +397,121 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         if retcode != 0:
             raise CalledProcessError(retcode, proc.args, output=proc.stdout, stderr=proc.stderr)
 
+
     def setupPythonRequirements(self, upgrade=False):
 
-        # install python docker sdk
-        needToInstallDocker = False
+        # install python package
+        # needToInstallPackage = False
+        # try:
+        #   import package
+        # except ModuleNotFoundError as e:
+        #    needToInstallPackage = True
+        # if needToInstallPackage:
+        #    self.log('Packagename is required. Installing...')
+        #    slicer.util.pip_install('package')
+        
+        pass
+
+    def addDockerPath(self):
+        # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
+        if not '/usr/local/bin' in os.environ["PATH"]:
+            self.log(f"Adding /usr/local/bin to PATH.")
+            os.environ["PATH"] += os.pathsep + '/usr/local/bin'
+
+
+    def checkForDockerInstallation(self):
+        """
+        Docker is required on the system. This function checks wheather it was installed.
+        TODO: version requirements might be added after evaluation.
+        """
+
+        import shutil, subprocess, json
+        dockerExecPath = shutil.which('docker')
+        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
+
+        # run docker version
+        # command = ['docker', '--version']
+
+        # run docker info        
+        command =  ['docker', 'info']
+        command += ['--format', '{{json .}}']
+
         try:
-            import docker
-        except ModuleNotFoundError as e:
-            needToInstallDocker = True
-        if needToInstallDocker:
-            self.log('Docker SDK for Python is required. Installing...')
-            slicer.util.pip_install('docker')
+            docker_info = subprocess.check_output(command).decode('utf-8')
+        except json.decoder.JSONDecodeError as e:
+            self.log("Docker is not installed in your system.\nPlease install docker to proceed.")
+            return False
+        except Exception as e:
+            print(f"Unexpected exception when pulling docker info: {str(e)}")
+            return False
 
-        #TODO: check if docker was set up on OS
+        return True
 
-    def runContainer(self, dir):
-        import os, time, docker, uuid
-        tid = str(uuid.uuid4())
+    def checkImage(self, image_tag):
+        """Search available docker images. Returns true if the image is available. 
+        """
+        #
+        self.addDockerPath()
 
-        print(f"[{tid}] THREAD: ", dir)
-        start_time = time.time()
+        #
+        import shutil, subprocess
+        dockerExecPath = shutil.which('docker')
+        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
 
-        # connect to docker socket
-        client = docker.from_env()
+        #
+        command =  ['docker', 'images']
+        command += ['--format', '{{.Repository}}:{{.Tag}}']
 
-        # list images
-        images_list = client.images.list()
-        print(f"[{tid}] found images: ")
-        for image in images_list:
-            print(f"[{tid}] > ", image.id, image.tags)
+        # get list of images
+        images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
 
-        # get an image
-        image = client.images.get('leo/thresholder')
-        print(f"[{tid}] Get Thresholder Image")
-        print(f"[{tid}] > ", image.id)
+        # search image
+        # TODO: we need to decide how to use the tagging system.
+        match = image_tag in images_lst
 
-        # setup a container
-        container = client.containers.run(
-            image.id,
-            volumes = [
-                f"{dir}:/app/data/input_data",
-                f"{dir}:/app/data/output_data"
-            ],
-            detach=True
-        )
+        if not match:
+            for image in images_lst:
+                if image_tag == image.split(":")[0]:
+                    match = True
 
-        for line in container.logs(stream=True):
-            print(f"[{tid}]", line.strip())
+        return match
 
-        #output = container.attach(stdout=True, stream=True, logs=True)
+    def buildImage(self, image_tag):
+        """ Build a image.
+        """
+        #
+        self.addDockerPath()
 
-        result = container.wait()
-        container.remove()
+        #
+        dockerDir = self.resourcePath(os.path.join('Dockerfiles', 'Thresholder'))
 
-        # scan temp dir for files
-        flst = os.listdir(dir)
-        print(f"[{tid}] FILES")
-        for f in flst:
-            print(f"[{tid}] >", f)
+        #
+        import shutil
+        dockerExecPath = shutil.which('docker')
+        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
 
-        print(f"[{tid}] total time: ", round(time.time() - start_time))
+        command =  ['docker', 'build']
+        command += ['-t', image_tag]
+        command += ['--build-arg', 'USER_ID=1001']
+        command += ['--build-arg', 'GROUP_ID=1001']
+       
+        # TODO: for Mac with M1 add platform
+        # command += ['--platform', 'linux/amd64']
+        # TODO: for linux add local user and group id
+
+        command += [dockerDir]
+
+        # run
+        self.log("Running " + " ".join(command))
+        proc = slicer.util.launchConsoleProcess(command)
+        self.logProcessOutput(proc)
+        self.log("Image build.")
 
 
     def runContainerSync(self, image_tag, dir):
+        """ Create and run a container of the specified image.
+            NOTE: This code is blocking.
+        """
         
         #
         self.addDockerPath()
@@ -469,12 +527,12 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         command += ["--volume", f"{dir}:/app/data/output_data"]
         command += [image_tag]
 
-
         # run
         self.log("Running " + " ".join(command))
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
-        
+
+
     def displaySegmentation(self, outputSegmentation, dir):
 
         # clear output segmentation
@@ -505,68 +563,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
         #self.setTerminology(outputSegmentation, segmentName, segmentId)
         slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
-
-    def addDockerPath(self):
-        # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
-        if not '/usr/local/bin' in os.environ["PATH"]:
-            self.log(f"Adding /usr/local/bin to PATH.")
-            os.environ["PATH"] += os.pathsep + '/usr/local/bin'
-
-    def buildImage(self, image_tag):
-        #
-        self.addDockerPath()
-
-        #
-        dockerDir = self.resourcePath(os.path.join('Dockerfiles', 'Thresholder'))
-
-        #
-        import shutil
-        dockerExecPath = shutil.which('docker')
-        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
-
-        command =  ['docker', 'build']
-        command += ['-t', image_tag]
-        command += ['--build-arg', 'USER_ID=1001']
-        command += ['--build-arg', 'GROUP_ID=1001']
-       
-        # TODO: for Mac with M1 add platform
-        # command += ['--platform', 'linux/amd64']
-        # TODO: for linux add local user and group id
-
-        command += [dockerDir]
-
-        # run
-        self.log("Running " + " ".join(command))
-        proc = slicer.util.launchConsoleProcess(command)
-        self.logProcessOutput(proc)
-        self.log("Image build.")
-
-    def checkImage(self, image_tag):
-        #
-        self.addDockerPath()
-
-        #
-        import shutil, subprocess
-        dockerExecPath = shutil.which('docker')
-        self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
-
-        #
-        command =  ['docker', 'images']
-        command += ['--format', '{{.Repository}}:{{.Tag}}']
-
-        # get list of images
-        images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
-
-        # search image
-        # TODO: we need to decide how to use the tagging system.
-        match = image_tag in images_lst
-
-        if not match:
-            for image in images_lst:
-                if image_tag == image.split(":")[0]:
-                    match = True
-
-        return match
 
     def process(self, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
         """
