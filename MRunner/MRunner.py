@@ -459,6 +459,12 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         try:
             docker_info = subprocess.check_output(command).decode('utf-8')
+            docker_info = json.loads(docker_info)
+
+            if "ServerErrors" in docker_info:
+                self.log(f"Docker ServerError: {', '.join(docker_info['ServerErrors'])}")
+                return False
+
         except json.decoder.JSONDecodeError as e:
             self.log("Docker is not installed in your system.\nPlease install docker to proceed.")
             return False
