@@ -3,7 +3,44 @@
         {
             "name": "Thresholder",
             "dockerfile": "Thresholder/",
-            "tag": "aimi/thresholder:latest"
+            "tag": "aimi/thresholder:latest",
+            "type": "segmentation",
+            "config": {},
+            "output": [
+                {
+                    "file": "output.nrrd",
+                    "labels": {
+                        "1": "Threshold"
+                    }
+                }
+            ]            
+        },
+        {
+            "name": "TotalSegmentator",
+            "dockerfile": "TotalSegmentator/",
+            "tag": "aimi/totalsegmentator:latest",
+            "type": "segmentation",
+            "config": {},
+            "output": [
+                {
+                    "file": "aorta.nii.gz",
+                    "labels": {
+                        "1": "AORTA"
+                    }
+                },
+                {
+                    "file": "heart_atrium_left.nii.gz",
+                    "labels": {
+                        "1": "LEFT_ATRIUM"
+                    }
+                },
+                {
+                    "file": "heart_atrium_right.nii.gz",
+                    "labels": {
+                        "1": "RIGHT_ATRIUM"
+                    }
+                }
+            ]            
         }
     ]
 }

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>356</width>
-    <height>474</height>
+    <height>566</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -198,6 +198,20 @@
         </property>
         <property name="removeEnabled">
          <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QPushButton" name="cmdTest1">
+        <property name="text">
+         <string>Test1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QPushButton" name="cmdTest2">
+        <property name="text">
+         <string>Test2</string>
         </property>
        </widget>
       </item>

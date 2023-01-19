@@ -1,0 +1,35 @@
+CodeValue,CodingSchemeDesignator,CodeMeaning
+23451007,SCT,Adrenal gland
+15825003,SCT,Aorta
+71616004,SCT,Muscle
+12738006,SCT,Brain
+51299004,SCT,Clavicle
+71854001,SCT,Colon
+38848004,SCT,Duodenum
+32849002,SCT,Esophagus
+89545001,SCT,Face
+71341001,SCT,Femur
+28231008,SCT,Gallbladder
+59652004,SCT,Atrium
+87878005,SCT,Left ventricle
+53085002,SCT,Right ventricle
+272673000,SCT,Bone
+85050009,SCT,Humerus
+73634005,SCT,Common iliac artery
+46027005,SCT,Common iliac vein
+64131007,SCT,Inferior vena cava
+64033007,SCT,Kidney
+10200004,SCT,Liver
+90572001,SCT,Lower lobe of lung
+72481006,SCT,Middle lobe of right lung
+45653009,SCT,Upper lobe of lung
+15776009,SCT,Pancreas
+29092000,SCT,Vein
+81040000,SCT,Pulmonary artery
+54735007,SCT,Sacrum
+79601000,SCT,Scapula
+30315005,SCT,Small Intestine
+78961009,SCT,Spleen
+69695003,SCT,Stomach
+44567001,SCT,Trachea
+89837001,SCT,Bladder

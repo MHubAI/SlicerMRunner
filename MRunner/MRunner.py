@@ -147,13 +147,18 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
 
+        # install required python packages and add file-path to pythonpath (NOTE: the latter seems only required on linux?)
+        self.logic.setupPythonRequirements()
+        import sys
+        sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
+
         # load repo definition and pass down to logic
-        with open(self.resourcePath('Dockerfiles/repo.json')) as f:
-            self.repo = json.load(f)
-            self.logic.repo = self.repo
+        from Repo import Repository
+        self.repo = Repository(self.resourcePath('Dockerfiles/repo.json'))
+        self.logic.repo = self.repo
 
         # exract model names from repo definition and feed into dropdown
-        model_names = list(map(lambda x: f"{x['name']} ({x['tag']})", self.repo['models']))
+        model_names = self.repo.getModelNames()
 
         self.ui.modelComboBox.addItems(model_names)
 
@@ -171,6 +176,9 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Buttons
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
+        self.ui.advancedCollapsibleButton.collapsed = False
+        self.ui.cmdTest1.connect('clicked(bool)', self.onTest1ButtonClick)
+        self.ui.cmdTest2.connect('clicked(bool)', self.onTest2ButtonClick)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -319,6 +327,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.statusLabel.plainText = ''
 
             # setup python requirements
+            # NOTE: moved to setup()
             # self.logic.setupPythonRequirements()
 
             # Create new segmentation node, if not selected yet
@@ -326,8 +335,13 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self.ui.outputSegmentationSelector.addNode()
                 self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)
 
+            # get image tag from dropdown
+            #self.ui.modelComboBox
+            imageTag = "aimi/thresholder:latest"
+
             # Compute output
             self.logic.process(
+                imageTag,
                 self.ui.inputSelector.currentNode(), 
                 self.ui.outputSegmentationSelector.currentNode(),
                 self.ui.imageThresholdSliderWidget.value, 
@@ -340,6 +354,28 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             #    self.logic.process(self.ui.inputSelector.currentNode(), self.ui.invertedOutputSelector.currentNode(),
             #                       self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
 
+    def onTest1ButtonClick(self):
+        self.addLog("-- Test 1 (Segmentation names) ------------")
+        print("combo data: ", self.ui.modelComboBox.currentData)
+
+
+    def onTest2ButtonClick(self):
+        self.addLog("-- Test 2 (fake segment import from local sample data) ------------")
+
+        # sample data
+        sample_dir = self.resourcePath("SampleData")
+        assert os.path.isdir(sample_dir), f"Path not found: {sample_dir}"
+        self.addLog(f"Sample dir: {sample_dir}")
+
+        # Create new segmentation node, if not selected yet
+        if not self.ui.outputSegmentationSelector.currentNode():
+            self.ui.outputSegmentationSelector.addNode()
+            self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)
+
+        self.logic.displaySegmentationsFromYamlFile(
+            self.ui.outputSegmentationSelector.currentNode(),
+            sample_dir
+        )
 
 #
 # MRunnerLogic
@@ -403,18 +439,36 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
 
     def setupPythonRequirements(self, upgrade=False):
-
-        # install python package
-        # needToInstallPackage = False
-        # try:
-        #   import package
-        # except ModuleNotFoundError as e:
-        #    needToInstallPackage = True
-        # if needToInstallPackage:
-        #    self.log('Packagename is required. Installing...')
-        #    slicer.util.pip_install('package')
         
-        pass
+        # install yaml python package
+        needToInstallPackage = False
+        try:
+          import yaml
+        except ModuleNotFoundError as e:
+           needToInstallPackage = True
+        if needToInstallPackage:
+           self.log('PyYaml is required. Installing...')
+           slicer.util.pip_install('pyyaml')
+
+        # install pandas python package
+        needToInstallPackage = False
+        try:
+          import pandas
+        except ModuleNotFoundError as e:
+           needToInstallPackage = True
+        if needToInstallPackage:
+           self.log('Pandas is required. Installing...')
+           slicer.util.pip_install('pandas')
+
+        # install numpy python package
+        needToInstallPackage = False
+        try:
+          import numpy
+        except ModuleNotFoundError as e:
+           needToInstallPackage = True
+        if needToInstallPackage:
+           self.log('Numpy is required. Installing...')
+           slicer.util.pip_install('numpy')
 
 
     def addDockerPath(self):
@@ -422,6 +476,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         if not '/usr/local/bin' in os.environ["PATH"]:
             self.log(f"Adding /usr/local/bin to PATH.")
             os.environ["PATH"] += os.pathsep + '/usr/local/bin'
+
 
     def getDockerExecutable(self, verbose=True):
         dockerExecPath = None
@@ -434,6 +489,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         if verbose:
             self.log(f"Docker executable found at {dockerExecPath}" if dockerExecPath else "Docker executable not found.")
         return dockerExecPath
+
 
     def checkForDocker(self):
         """
@@ -509,10 +565,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """
 
         # get docker directory from repo
-        dockerDir = None
-        for model in self.repo["models"]:
-            if model["tag"] == image_tag:
-                dockerDir = self.resourcePath(os.path.join('Dockerfiles', model["dockerfile"]))
+        model = self.repo.getModelByTag(image_tag)
+        dockerDir = self.resourcePath(os.path.join('Dockerfiles', model.getDockerfile())) if model is not None else None
 
         if not os.path.isdir(dockerDir):
             self.log(f"Cannot build image. Dockerfile for '{model['name']} ({image_tag})' not found at specified location '{dockerDir}'.")
@@ -524,12 +578,13 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         command =  [dockerExecPath, 'build']
         command += ['-t', image_tag]
-        command += ['--build-arg', 'USER_ID=1001']
-        command += ['--build-arg', 'GROUP_ID=1001']
+        #command += ['--build-arg', 'USER_ID=1001']
+        #command += ['--build-arg', 'GROUP_ID=1001']
+        command +=  ['--platform', 'linux/amd64']
        
         # TODO: for Mac with M1 add platform
         # command += ['--platform', 'linux/amd64']
-        # TODO: for linux add local user and group id
+        # TODO: for linux add local user and group id --> no longer needed in newer docker files.
 
         command += [dockerDir]
 
@@ -549,7 +604,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         assert dockerExecPath is not None, "DockerExecPath is None."
         
         #
-        command  = [dockerExecPath, "run", "-t"]
+        command  = [dockerExecPath, "run"]
         command += ["--volume", f"{dir}:/app/data/input_data"]
         command += ["--volume", f"{dir}:/app/data/output_data"]
         command += [image_tag]
@@ -559,39 +614,88 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
 
+    def displaySegmentationsFromYamlFile(self, outputSegmentation, dir):
 
-    def displaySegmentation(self, outputSegmentation, dir):
+        # read yaml
+        try:
+            from ymldicomseg.ymlsegclass import YMLSEG
+        except ModuleNotFoundError as e:
+            print("only on dev maschine")
+            return
+            
+        yseg = YMLSEG(self.resourcePath("meta.yml"))
+
+        segments = yseg.getSegments()
+        for segment in segments:
+            segment_file = yseg.getSegmentFile(segment)
+            self.log(str(segment) + "->" + segment_file)
+            
+            #
+            segment_path = os.path.join(dir, segment_file)
+
+            # create a label volume node and configure it
+            segmentName = segment.getName()
+            labelmapVolumeNode = slicer.util.loadLabelVolume(segment_path, {"name": segmentName})
+
+            # get rgba (fix in Color class)
+            rgba = segment.getColor().getComponents()
+            rgba.append(255)
+            rgba = [c / 255 for c in rgba]
+            print("Color: ", rgba)
+
+            # add segment
+            segmentId = outputSegmentation.GetSegmentation().AddEmptySegment(segmentName, segmentName, rgba[0:3])
+            updatedSegmentIds = vtk.vtkStringArray()
+            updatedSegmentIds.InsertNextValue(segmentId)
+            
+            # add the label volume node to the segmentation node and remove it
+            slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
+            #self.setTerminology(outputSegmentation, segmentName, segmentId)
+            slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
+
+    def displaySegmentation(self, outputSegmentation, dir, image_tag):
 
         # clear output segmentation
         outputSegmentation.GetSegmentation().RemoveAllSegments()
 
-        # Get color node with random colors
-        randomColorsNode = slicer.mrmlScene.GetNodeByID('vtkMRMLColorTableNodeRandom')
-        rgba = [0, 0, 0, 0]
+        # get model
+        model = self.repo.getModelByTag(image_tag)
 
-        # static
-        segmentName = "ThresholdedFG"
-        labelValue = 1
-        self.log(f"Importing {segmentName} (label: {labelValue})")
-        
-        # read output file
-        labelVolumePath = os.path.join(dir, 'output.nrrd')
-        if not os.path.exists(labelVolumePath):
-            print(f"ERROR: file not found {labelVolumePath}")
+        # iterate all output files from the repo
+        ofs = model.getOutputFiles()
+        for of in ofs:
+            fileName = of.getFileName()
 
-        #
-        labelmapVolumeNode = slicer.util.loadLabelVolume(labelVolumePath, {"name": segmentName})
+            # iterate all labels within file
+            ofls = of.getLabels()
+            for ofl in ofls:
+                segment = ofl.getSegment()
+                segmentName = segment.getName()
+                segmentRGB = segment.getColor().getComponentsAsFloat()
+                labelValue = ofl.getID()
 
-        randomColorsNode.GetColor(labelValue, rgba)
-        segmentId = outputSegmentation.GetSegmentation().AddEmptySegment(segmentName, segmentName, rgba[0:3])
-        updatedSegmentIds = vtk.vtkStringArray()
-        updatedSegmentIds.InsertNextValue(segmentId)
-        
-        slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
-        #self.setTerminology(outputSegmentation, segmentName, segmentId)
-        slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
+                self.log(f"Importing {segmentName} (label: {labelValue}, file: {fileName}")
 
-    def process(self, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
+                #
+                segmentPath = os.path.join(dir, fileName)
+                assert os.path.isfile(segmentPath), f"Segment file not found at {segmentPath}."
+
+                # create a label volume node and configure it
+                segmentName = segment.getName()
+                labelmapVolumeNode = slicer.util.loadLabelVolume(segmentPath, {"name": segmentName})
+
+                # add segment
+                segmentId = outputSegmentation.GetSegmentation().AddEmptySegment(segmentName, segmentName, segmentRGB)
+                updatedSegmentIds = vtk.vtkStringArray()
+                updatedSegmentIds.InsertNextValue(segmentId)
+                
+                # add the label volume node to the segmentation node and remove it
+                slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
+                #self.setTerminology(outputSegmentation, segmentName, segmentId)
+                slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
+
+
+    def process(self, image_tag, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -624,7 +728,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         volumeStorageNode.UnRegister(None)
 
         # image to run
-        image_tag = 'aimi/thresholder' # 'leo/thresholder'
+        #image_tag = 'aimi/totalsegmentator:latest' # 'aimi/thresholder' # 'leo/thresholder'
 
         # check / build image
         if not self.checkImage(image_tag):
@@ -634,7 +738,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.runContainerSync(image_tag, tempDir)
 
         # display segmentation
-        self.displaySegmentation(outputSegmentation, tempDir)
+        self.displaySegmentation(outputSegmentation, tempDir, image_tag)
 
         stopTime = time.time()
         self.log(f'Processing completed in {stopTime-startTime:.2f} seconds x')
