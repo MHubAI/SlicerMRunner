@@ -7,6 +7,8 @@ import slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import qt
+
+
 #
 # MRunner
 #
@@ -153,14 +155,13 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
 
         # load repo definition and pass down to logic
-        from Repo import Repository
+        from Utils.Repo import Repository
         self.repo = Repository(self.resourcePath('Dockerfiles/repo.json'))
         self.logic.repo = self.repo
 
         # exract model names from repo definition and feed into dropdown
-        model_names = self.repo.getModelNames()
-
-        self.ui.modelComboBox.addItems(model_names)
+        for model in self.repo.getModels():
+            self.ui.modelComboBox.addItem(f"{model.getName()} ({model.getDockerTag()})", model)
 
         # test table view
         self.ui.modelTableWidget.setRowCount(2)
@@ -326,9 +327,8 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             # clear text field
             self.ui.statusLabel.plainText = ''
 
-            # setup python requirements
-            # NOTE: moved to setup()
-            # self.logic.setupPythonRequirements()
+            # setup python requirements 
+            # self.logic.setupPythonRequirements() NOTE: moved to setup()
 
             # Create new segmentation node, if not selected yet
             if not self.ui.outputSegmentationSelector.currentNode():
@@ -336,23 +336,17 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)
 
             # get image tag from dropdown
-            #self.ui.modelComboBox
-            imageTag = "aimi/thresholder:latest"
+            selectedModel = self.ui.modelComboBox.currentData
 
             # Compute output
             self.logic.process(
-                imageTag,
+                selectedModel.getDockerTag(),
                 self.ui.inputSelector.currentNode(), 
                 self.ui.outputSegmentationSelector.currentNode(),
                 self.ui.imageThresholdSliderWidget.value, 
                 self.ui.invertOutputCheckBox.checked
             )
 
-            # Compute inverted output (if needed)
-            #if self.ui.invertedOutputSelector.currentNode():
-            #    # If additional output volume is selected then result with inverted threshold is written there
-            #    self.logic.process(self.ui.inputSelector.currentNode(), self.ui.invertedOutputSelector.currentNode(),
-            #                       self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
 
     def onTest1ButtonClick(self):
         self.addLog("-- Test 1 (Segmentation names) ------------")
@@ -362,20 +356,20 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onTest2ButtonClick(self):
         self.addLog("-- Test 2 (fake segment import from local sample data) ------------")
 
-        # sample data
-        sample_dir = self.resourcePath("SampleData")
-        assert os.path.isdir(sample_dir), f"Path not found: {sample_dir}"
-        self.addLog(f"Sample dir: {sample_dir}")
+        ## sample data
+        #sample_dir = self.resourcePath("SampleData")
+        #assert os.path.isdir(sample_dir), f"Path not found: {sample_dir}"
+        #self.addLog(f"Sample dir: {sample_dir}")#
 
-        # Create new segmentation node, if not selected yet
-        if not self.ui.outputSegmentationSelector.currentNode():
-            self.ui.outputSegmentationSelector.addNode()
-            self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)
+        ## Create new segmentation node, if not selected yet
+        #if not self.ui.outputSegmentationSelector.currentNode():
+        #    self.ui.outputSegmentationSelector.addNode()
+        #    self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)#
 
-        self.logic.displaySegmentationsFromYamlFile(
-            self.ui.outputSegmentationSelector.currentNode(),
-            sample_dir
-        )
+        #self.logic.displaySegmentationsFromYamlFile(
+        #    self.ui.outputSegmentationSelector.currentNode(),
+        #    sample_dir
+        #)
 
 #
 # MRunnerLogic
@@ -614,44 +608,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
 
-    def displaySegmentationsFromYamlFile(self, outputSegmentation, dir):
-
-        # read yaml
-        try:
-            from ymldicomseg.ymlsegclass import YMLSEG
-        except ModuleNotFoundError as e:
-            print("only on dev maschine")
-            return
-            
-        yseg = YMLSEG(self.resourcePath("meta.yml"))
-
-        segments = yseg.getSegments()
-        for segment in segments:
-            segment_file = yseg.getSegmentFile(segment)
-            self.log(str(segment) + "->" + segment_file)
-            
-            #
-            segment_path = os.path.join(dir, segment_file)
-
-            # create a label volume node and configure it
-            segmentName = segment.getName()
-            labelmapVolumeNode = slicer.util.loadLabelVolume(segment_path, {"name": segmentName})
-
-            # get rgba (fix in Color class)
-            rgba = segment.getColor().getComponents()
-            rgba.append(255)
-            rgba = [c / 255 for c in rgba]
-            print("Color: ", rgba)
-
-            # add segment
-            segmentId = outputSegmentation.GetSegmentation().AddEmptySegment(segmentName, segmentName, rgba[0:3])
-            updatedSegmentIds = vtk.vtkStringArray()
-            updatedSegmentIds.InsertNextValue(segmentId)
-            
-            # add the label volume node to the segmentation node and remove it
-            slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
-            #self.setTerminology(outputSegmentation, segmentName, segmentId)
-            slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
 
     def displaySegmentation(self, outputSegmentation, dir, image_tag):
 
@@ -674,7 +630,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 segmentRGB = segment.getColor().getComponentsAsFloat()
                 labelValue = ofl.getID()
 
-                self.log(f"Importing {segmentName} (label: {labelValue}, file: {fileName}")
+                self.log(f"Importing {segmentName} (label: {labelValue}, file: {fileName})")
 
                 #
                 segmentPath = os.path.join(dir, fileName)

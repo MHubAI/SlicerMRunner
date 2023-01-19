@@ -1,8 +1,8 @@
 from typing import Optional, List
 import os, json, yaml, pandas as pd, numpy as np
 
-# global ressource path
-YMLSEG_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+# global ressource path (./data)
+YMLSEG_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'Resources', 'SegDB')
 
 class DB:
     def __init__(self) -> None:
@@ -133,7 +133,5 @@ class YMLSEG:
         segments: List[Segment] = []
         for segment_id in self.config["segments"]:
             segments.append(Segment(segment_id))
-            #segment_file_name = self.config["segments"][segment_id] 
-            #print(segment_id, segment_file_name)
-
+ 
         return segments

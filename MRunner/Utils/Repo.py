@@ -13,7 +13,7 @@ from typing import List, Optional
 from enum import Enum
 
 import os, json
-from ymldicomseg.ymlsegclass import Segment
+from .SegDB import Segment
 
 """
  "models": [
