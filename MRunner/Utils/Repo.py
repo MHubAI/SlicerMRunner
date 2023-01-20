@@ -9,11 +9,11 @@ Email:  leonard.nuernberg@maastrichtuniversity.nl
 -------------------------------------------------
 """
 
-from typing import List, Optional
+from typing import List, Optional, Union
 from enum import Enum
 
 import os, json
-from .SegDB import Segment
+from .SegDB import Segment, Color
 
 """
  "models": [
@@ -70,8 +70,38 @@ class RepositoryModelType(Enum):
     SEGMENTATION = "segmentation"
     CLASSIFICATION = "classification"
 
+
 class CustomSegment(Segment):
-    pass
+
+    def __init__(self, data: any) -> None:
+        self.data = data
+
+    # override
+    def getID(self) -> str:
+        return self.getName()
+
+    # override
+    def getCategory(self) -> None:
+        return None
+
+    # override
+    def getType(self) -> None:
+       return None
+
+    # override
+    def getModifier(self) -> None:
+       return None
+
+    # override
+    def getName(self) -> str:
+        return str(self.data['name'])
+
+    # override
+    def getColor(self) -> Optional['Color']:
+        if "color" in self.data:
+            return Color(*self.data["color"])
+        else:
+            return None
 
 class ExpectedOutputFile:
     def __init__(self, data: any) -> None:
@@ -89,13 +119,20 @@ class ExpectedOutputFile:
         return labels
 
 class ExpectedOutputFileLabel:
-    def __init__(self, file: ExpectedOutputFile, label: int, segment_id: str) -> None:
+    def __init__(self, file: ExpectedOutputFile, label: int, segment: Union[str, object]) -> None:
         self.file = file
         self.label = label
-        self.segment_id = segment_id
+        self.segment = segment
 
     def getSegment(self) -> Segment:
-        return Segment(self.segment_id)
+        if isinstance(self.segment, str):
+            segment_id = self.segment
+            return Segment(segment_id)
+        elif isinstance(self.segment, object):
+            segment_data = self.segment
+            return CustomSegment(segment_data)
+        else:
+            raise TypeError(f"Invalid segment type {type(self.segment)}. Expect a segment id (str) or custom (object).")
 
     def getFile(self) -> ExpectedOutputFile:
         return self.file

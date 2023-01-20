@@ -10,7 +10,10 @@
                 {
                     "file": "output.nrrd",
                     "labels": {
-                        "1": "Threshold"
+                        "1": {
+                            "name": "Thresholded",
+                            "color": [20, 30, 40]
+                        }
                     }
                 }
             ]            
