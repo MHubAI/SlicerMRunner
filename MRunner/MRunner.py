@@ -340,7 +340,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             # Compute output
             self.logic.process(
-                selectedModel.getDockerTag(),
+                selectedModel,
                 self.ui.inputSelector.currentNode(), 
                 self.ui.outputSegmentationSelector.currentNode(),
                 self.ui.imageThresholdSliderWidget.value, 
@@ -572,8 +572,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         command =  [dockerExecPath, 'build']
         command += ['-t', image_tag]
-        #command += ['--build-arg', 'USER_ID=1001']
-        #command += ['--build-arg', 'GROUP_ID=1001']
+        command += ['--build-arg', 'USER_ID=1001']
+        command += ['--build-arg', 'GROUP_ID=1001']
         command +=  ['--platform', 'linux/amd64']
        
         # TODO: for Mac with M1 add platform
@@ -589,7 +589,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log("Image build.")
 
 
-    def runContainerSync(self, image_tag, dir):
+    def runContainerSync(self, model, dir, containerArguments=None):
         """ Create and run a container of the specified image.
             NOTE: This code is blocking.
         """
@@ -598,10 +598,21 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         assert dockerExecPath is not None, "DockerExecPath is None."
         
         #
-        command  = [dockerExecPath, "run"]
+        command  = [dockerExecPath, "run", "--rm"]
         command += ["--volume", f"{dir}:/app/data/input_data"]
         command += ["--volume", f"{dir}:/app/data/output_data"]
-        command += [image_tag]
+        command += ["--gpus", "all"]
+
+        # image to create container from
+        command += [model.getDockerTag()]
+
+        # slcier entrypoint
+        mhub_model_dir = model.getName().lower()
+        command += ["python3", f"/app/mhub/{mhub_model_dir}/scripts/slicer_run.py"]
+
+        # commands
+        if isinstance(containerArguments, list) and len(containerArguments) > 0:
+            command += containerArguments
 
         # run
         self.log("Running " + " ".join(command))
@@ -609,13 +620,10 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.logProcessOutput(proc)
 
 
-    def displaySegmentation(self, outputSegmentation, dir, image_tag):
+    def displaySegmentation(self, outputSegmentation, dir, model):
 
         # clear output segmentation
         outputSegmentation.GetSegmentation().RemoveAllSegments()
-
-        # get model
-        model = self.repo.getModelByTag(image_tag)
 
         # iterate all output files from the repo
         ofs = model.getOutputFiles()
@@ -651,7 +659,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
 
 
-    def process(self, image_tag, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
+    def process(self, model, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -687,14 +695,14 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         #image_tag = 'aimi/totalsegmentator:latest' # 'aimi/thresholder' # 'leo/thresholder'
 
         # check / build image
-        if not self.checkImage(image_tag):
-            self.buildImage(image_tag)
+        if not self.checkImage(model.getDockerTag()):
+            self.buildImage(model.getDockerTag())
 
         # run container
-        self.runContainerSync(image_tag, tempDir)
+        self.runContainerSync(model, tempDir)
 
         # display segmentation
-        self.displaySegmentation(outputSegmentation, tempDir, image_tag)
+        self.displaySegmentation(outputSegmentation, tempDir, model)
 
         stopTime = time.time()
         self.log(f'Processing completed in {stopTime-startTime:.2f} seconds x')

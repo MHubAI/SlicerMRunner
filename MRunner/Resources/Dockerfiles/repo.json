@@ -3,7 +3,7 @@
         {
             "name": "Thresholder",
             "dockerfile": "Thresholder/",
-            "tag": "aimi/thresholder:latest",
+            "tag": "mhub/thresholder:latest",
             "type": "segmentation",
             "config": {},
             "output": [
@@ -21,7 +21,7 @@
         {
             "name": "TotalSegmentator",
             "dockerfile": "TotalSegmentator/",
-            "tag": "aimi/totalsegmentator:latest",
+            "tag": "mhub/totalsegmentator:latest",
             "type": "segmentation",
             "config": {},
             "output": [
