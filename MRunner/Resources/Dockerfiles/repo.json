@@ -44,6 +44,45 @@
                     }
                 }
             ]            
+        },
+        {
+            "name": "Platipy",
+            "dockerfile": "",
+            "tag": "mhubai/platipy",
+            "type": "segmentation",
+            "config": {},
+            "output": [
+                {
+                    "file": "A_Aorta.nii.gz",
+                    "labels": {
+                        "1": "AORTA"
+                    }
+                },
+                {
+                    "file": "Atrium_L.nii.gz",
+                    "labels": {
+                        "1": "LEFT_ATRIUM"
+                    }
+                },
+                {
+                    "file": "Atrium_R.nii.gz",
+                    "labels": {
+                        "1": "RIGHT_ATRIUM"
+                    }
+                },
+                {
+                    "file": "Ventricle_L.nii.gz",
+                    "labels": {
+                        "1": "LEFT_VENTRICLE"
+                    }
+                },
+                {
+                    "file": "Ventricle_R.nii.gz",
+                    "labels": {
+                        "1": "RIGHT_VENTRICLE"
+                    }
+                }
+            ]            
         }
     ]
 }
