@@ -300,7 +300,8 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.applyButton.enabled = False
 
         if inputVolume:
-            self.ui.outputSegmentationSelector.baseName = inputVolume.GetName() + " segmentation"
+            model = self.ui.modelComboBox.currentData
+            self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getName()}]"
 
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
