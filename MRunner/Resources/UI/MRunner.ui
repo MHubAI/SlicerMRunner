@@ -118,26 +118,29 @@
       <string>Advanced</string>
      </property>
      <property name="checked">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="collapsed">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_3">
       <item row="0" column="0">
        <widget class="QLabel" name="label_4">
         <property name="text">
-         <string>Invert threshold: </string>
+         <string>Download Dockerfile:</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QCheckBox" name="invertOutputCheckBox">
+       <widget class="QCheckBox" name="downloadDockerfileCheckBox">
         <property name="toolTip">
          <string>If checked, values above threshold are set to 0. If unchecked, values below are set to 0.</string>
         </property>
         <property name="text">
          <string/>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>

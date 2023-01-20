@@ -145,7 +145,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode)
         self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
-        self.ui.invertOutputCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
+        self.ui.downloadDockerfileCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         #self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
 
@@ -273,7 +273,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.outputSegmentationSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputSegmentation"))
         #self.ui.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
         self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
-        self.ui.invertOutputCheckBox.checked = (self._parameterNode.GetParameter("Invert") == "true")
+        self.ui.downloadDockerfileCheckBox.checked = (self._parameterNode.GetParameter("DownloadDockerfile") == "true")
 
         # check if docker is installed
         isDockerInstalled = self.logic.checkForDocker()
@@ -307,7 +307,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetNodeReferenceID("InputVolume", self.ui.inputSelector.currentNodeID)
         self._parameterNode.SetNodeReferenceID("OutputVolume", self.ui.outputSelector.currentNodeID)
         self._parameterNode.SetParameter("Threshold", str(self.ui.imageThresholdSliderWidget.value))
-        self._parameterNode.SetParameter("Invert", "true" if self.ui.invertOutputCheckBox.checked else "false")
+        self._parameterNode.SetParameter("DownloadDockerfile", "true" if self.ui.downloadDockerfileCheckBox.checked else "false")
        #self._parameterNode.SetNodeReferenceID("OutputVolumeInverse", self.ui.invertedOutputSelector.currentNodeID)
 
         self._parameterNode.EndModify(wasModified)
@@ -344,7 +344,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self.ui.inputSelector.currentNode(), 
                 self.ui.outputSegmentationSelector.currentNode(),
                 self.ui.imageThresholdSliderWidget.value, 
-                self.ui.invertOutputCheckBox.checked
+                self.ui.downloadDockerfileCheckBox.checked
             )
 
 
@@ -553,14 +553,38 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         return match
 
+    def pullImage(self, image_tag):
+        pass
 
-    def buildImage(self, image_tag):
+    def downloadDockerfile(self, model):
+
+        mhub_model_dir = model.getName().lower()
+
+        # raw-path using the docker-dev branch instead of main.
+        dockerfile_url = f"https://raw.githubusercontent.com/AIM-Harvard/mhub/docker-dev/mhub/{mhub_model_dir}/dockerfiles/Dockerfile"
+        self.log(f"Downloading Dockerfile from {dockerfile_url}")
+
+        # create temp folder 
+        dockerfile_dir = slicer.util.tempDirectory()
+
+        # download file 
+        import urllib
+        urllib.request.urlretrieve(dockerfile_url, os.path.join(dockerfile_dir, "Dockerfile"))
+
+        #
+        self.log(f"Dockerfile downloaded to {dockerfile_dir}")
+        return dockerfile_dir
+
+    def buildImage(self, model, downloadDockerfile=True):
         """ Build a image.
         """
 
-        # get docker directory from repo
-        model = self.repo.getModelByTag(image_tag)
-        dockerDir = self.resourcePath(os.path.join('Dockerfiles', model.getDockerfile())) if model is not None else None
+        # load or download dockerfile
+        if downloadDockerfile:
+            dockerDir = self.downloadDockerfile(model)
+        else:
+            dockerDir = self.resourcePath(os.path.join('Dockerfiles', model.getDockerfile())) if model is not None else None
+            assert dockerDir is not None, "Local dockerfile not found. Try download option."
 
         if not os.path.isdir(dockerDir):
             self.log(f"Cannot build image. Dockerfile for '{model['name']} ({image_tag})' not found at specified location '{dockerDir}'.")
@@ -571,10 +595,10 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         assert dockerExecPath is not None, "DockerExecPath is None."
 
         command =  [dockerExecPath, 'build']
-        command += ['-t', image_tag]
+        command += ['-t', model.getDockerTag()]
         command += ['--build-arg', 'USER_ID=1001']
         command += ['--build-arg', 'GROUP_ID=1001']
-        command +=  ['--platform', 'linux/amd64']
+        command += ['--platform', 'linux/amd64']
        
         # TODO: for Mac with M1 add platform
         # command += ['--platform', 'linux/amd64']
@@ -659,7 +683,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
 
 
-    def process(self, model, inputVolume, outputSegmentation, imageThreshold, invert=False, showResult=True):
+    def process(self, model, inputVolume, outputSegmentation, imageThreshold, invert=False, downloadDockerfile=True):
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -696,7 +720,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         # check / build image
         if not self.checkImage(model.getDockerTag()):
-            self.buildImage(model.getDockerTag())
+            self.buildImage(model, downloadDockerfile)
 
         # run container
         self.runContainerSync(model, tempDir)
