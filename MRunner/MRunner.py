@@ -146,6 +146,8 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode)
         self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
         self.ui.downloadDockerfileCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
+        self.ui.gpuCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
+        self.ui.dockerNoCacheCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         #self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
 
@@ -180,6 +182,14 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.advancedCollapsibleButton.collapsed = False
         self.ui.cmdTest1.connect('clicked(bool)', self.onTest1ButtonClick)
         self.ui.cmdTest2.connect('clicked(bool)', self.onTest2ButtonClick)
+
+        # disable old components (TODO: remove them later)
+        self.ui.imageThresholdSliderWidget.setVisible(False)
+        self.ui.outputSelector.setVisible(False)
+        self.ui.label_2.setVisible(False)
+        self.ui.label_3.setVisible(False)
+        self.ui.cmdTest1.setVisible(False)
+        self.ui.cmdTest2.setVisible(False)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -274,6 +284,8 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
         self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
         self.ui.downloadDockerfileCheckBox.checked = (self._parameterNode.GetParameter("DownloadDockerfile") == "true")
+        self.ui.gpuCheckBox.checked = (self._parameterNode.GetParameter("UseGPU") == "true")
+        self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
         # check if docker is installed
         isDockerInstalled = self.logic.checkForDocker()
@@ -308,7 +320,9 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetNodeReferenceID("OutputVolume", self.ui.outputSelector.currentNodeID)
         self._parameterNode.SetParameter("Threshold", str(self.ui.imageThresholdSliderWidget.value))
         self._parameterNode.SetParameter("DownloadDockerfile", "true" if self.ui.downloadDockerfileCheckBox.checked else "false")
-       #self._parameterNode.SetNodeReferenceID("OutputVolumeInverse", self.ui.invertedOutputSelector.currentNodeID)
+        self._parameterNode.SetParameter("UseGPU", "true" if self.ui.gpuCheckBox.checked else "false")
+        self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
+        # self._parameterNode.SetNodeReferenceID("OutputVolumeInverse", self.ui.invertedOutputSelector.currentNodeID)
 
         self._parameterNode.EndModify(wasModified)
 
@@ -340,11 +354,13 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             # Compute output
             self.logic.process(
-                selectedModel,
-                self.ui.inputSelector.currentNode(), 
-                self.ui.outputSegmentationSelector.currentNode(),
-                self.ui.imageThresholdSliderWidget.value, 
-                self.ui.downloadDockerfileCheckBox.checked
+                model               = selectedModel,
+                inputVolume         = self.ui.inputSelector.currentNode(), 
+                outputSegmentation  = self.ui.outputSegmentationSelector.currentNode(),
+                imageThreshold      = self.ui.imageThresholdSliderWidget.value, 
+                downloadDockerfile  = self.ui.downloadDockerfileCheckBox.checked,
+                useGPU              = self.ui.gpuCheckBox.checked,
+                noCache             = self.ui.dockerNoCacheCheckBox.checked
             )
 
 
@@ -575,7 +591,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log(f"Dockerfile downloaded to {dockerfile_dir}")
         return dockerfile_dir
 
-    def buildImage(self, model, downloadDockerfile=True):
+    def buildImage(self, model, downloadDockerfile=True, noCache=False):
         """ Build a image.
         """
 
@@ -599,6 +615,9 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         command += ['--build-arg', 'USER_ID=1001']
         command += ['--build-arg', 'GROUP_ID=1001']
         command += ['--platform', 'linux/amd64']
+        
+        if noCache:
+            command += ["--no-cache"]
        
         # TODO: for Mac with M1 add platform
         # command += ['--platform', 'linux/amd64']
@@ -613,7 +632,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log("Image build.")
 
 
-    def runContainerSync(self, model, dir, containerArguments=None):
+    def runContainerSync(self, model, dir, useGPU=False, containerArguments=None):
         """ Create and run a container of the specified image.
             NOTE: This code is blocking.
         """
@@ -625,7 +644,9 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         command  = [dockerExecPath, "run", "--rm"]
         command += ["--volume", f"{dir}:/app/data/input_data"]
         command += ["--volume", f"{dir}:/app/data/output_data"]
-        command += ["--gpus", "all"]
+
+        if useGPU:
+            command += ["--gpus", "all"]
 
         # image to create container from
         command += [model.getDockerTag()]
@@ -683,7 +704,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
 
 
-    def process(self, model, inputVolume, outputSegmentation, imageThreshold, invert=False, downloadDockerfile=True):
+    def process(self, model, inputVolume, outputSegmentation, imageThreshold, downloadDockerfile=True, useGPU=False, noCache=False):
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -720,10 +741,10 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         # check / build image
         if not self.checkImage(model.getDockerTag()):
-            self.buildImage(model, downloadDockerfile)
+            self.buildImage(model, downloadDockerfile=downloadDockerfile, noCache=noCache)
 
         # run container
-        self.runContainerSync(model, tempDir)
+        self.runContainerSync(model, tempDir, useGPU=useGPU)
 
         # display segmentation
         self.displaySegmentation(outputSegmentation, tempDir, model)
