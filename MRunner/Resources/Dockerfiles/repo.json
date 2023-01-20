@@ -3,7 +3,7 @@
         {
             "name": "Thresholder",
             "dockerfile": "Thresholder/",
-            "tag": "mhub/thresholder:latest",
+            "tag": "mhubai/thresholder",
             "type": "segmentation",
             "config": {},
             "output": [
@@ -21,7 +21,7 @@
         {
             "name": "TotalSegmentator",
             "dockerfile": "TotalSegmentator/",
-            "tag": "mhub/totalsegmentator:latest",
+            "tag": "mhubai/totalsegmentator",
             "type": "segmentation",
             "config": {},
             "output": [

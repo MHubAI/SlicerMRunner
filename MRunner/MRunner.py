@@ -407,6 +407,9 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """
         ScriptedLoadableModuleLogic.__init__(self)
 
+        self.IMAGE_TAG_CUDA = "cuda12.0"
+        self.IMAGE_TAG_NOCUDA = "nocuda"
+
         self.logCallback = None
         self.resourcePath = None
         self.repo = None
@@ -480,6 +483,16 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
            self.log('Numpy is required. Installing...')
            slicer.util.pip_install('numpy')
 
+    def downloadRepo(self):
+        # raw-path using the docker-dev branch instead of main.
+        repo_json_url = ""
+
+    def getDockerImageRefForModel(self, model, useGPU=False):
+        image_name = model.getDockerTag()
+        image_tag = self.IMAGE_TAG_CUDA if useGPU else self.IMAGE_TAG_NOCUDA
+        image_ref = f"{image_name}:{image_tag}"
+
+        return image_ref
 
     def addDockerPath(self):
         # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
@@ -541,7 +554,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         return True
 
 
-    def checkImage(self, image_tag):
+    def checkImage(self, model, useGPU=False):
         """Search available docker images. Returns true if the image is available. 
         """
         #
@@ -559,25 +572,23 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
 
         # search image
-        # TODO: we need to decide how to use the tagging system.
-        match = image_tag in images_lst
+        image_ref = self.getDockerImageRefForModel(model, useGPU=useGPU) # image_name:image_tag
 
-        if not match:
-            for image in images_lst:
-                if image_tag == image.split(":")[0]:
-                    match = True
+        #
+        return image_ref in images_lst
 
-        return match
 
     def pullImage(self, image_tag):
         pass
 
-    def downloadDockerfile(self, model):
+
+    def downloadDockerfile(self, model, useGPU=False):
 
         mhub_model_dir = model.getName().lower()
+        image_tag = self.IMAGE_TAG_CUDA if useGPU else self.IMAGE_TAG_NOCUDA
 
         # raw-path using the docker-dev branch instead of main.
-        dockerfile_url = f"https://raw.githubusercontent.com/AIM-Harvard/mhub/docker-dev/mhub/{mhub_model_dir}/dockerfiles/Dockerfile"
+        dockerfile_url = f"https://raw.githubusercontent.com/AIM-Harvard/mhub/docker-dev/mhub/{mhub_model_dir}/dockerfiles/{image_tag}/Dockerfile"
         self.log(f"Downloading Dockerfile from {dockerfile_url}")
 
         # create temp folder 
@@ -591,27 +602,28 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log(f"Dockerfile downloaded to {dockerfile_dir}")
         return dockerfile_dir
 
-    def buildImage(self, model, downloadDockerfile=True, noCache=False):
+
+    def buildImage(self, model, downloadDockerfile=True, noCache=False, useGPU=False):
         """ Build a image.
         """
 
         # load or download dockerfile
         if downloadDockerfile:
-            dockerDir = self.downloadDockerfile(model)
+            dockerDir = self.downloadDockerfile(model, useGPU=useGPU)
         else:
             dockerDir = self.resourcePath(os.path.join('Dockerfiles', model.getDockerfile())) if model is not None else None
             assert dockerDir is not None, "Local dockerfile not found. Try download option."
 
         if not os.path.isdir(dockerDir):
-            self.log(f"Cannot build image. Dockerfile for '{model['name']} ({image_tag})' not found at specified location '{dockerDir}'.")
-            # TODO: propagate and handle error
+            # TODO: handle error in calling methods
+            raise FileNotFoundError(f"Cannot build image. Dockerfile for '{model.getName()} ({self.getDockerImageRefForModel(model, useGPU=useGPU)})' not found at specified location '{dockerDir}'.")
 
         #
         dockerExecPath = self.getDockerExecutable()
         assert dockerExecPath is not None, "DockerExecPath is None."
 
         command =  [dockerExecPath, 'build']
-        command += ['-t', model.getDockerTag()]
+        command += ['-t', self.getDockerImageRefForModel(model, useGPU=useGPU)]
         command += ['--build-arg', 'USER_ID=1001']
         command += ['--build-arg', 'GROUP_ID=1001']
         command += ['--platform', 'linux/amd64']
@@ -649,7 +661,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             command += ["--gpus", "all"]
 
         # image to create container from
-        command += [model.getDockerTag()]
+        command += [self.getDockerImageRefForModel(model, useGPU=useGPU)]
 
         # slcier entrypoint
         mhub_model_dir = model.getName().lower()
@@ -740,8 +752,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         #image_tag = 'aimi/totalsegmentator:latest' # 'aimi/thresholder' # 'leo/thresholder'
 
         # check / build image
-        if not self.checkImage(model.getDockerTag()):
-            self.buildImage(model, downloadDockerfile=downloadDockerfile, noCache=noCache)
+        if not self.checkImage(model, useGPU=useGPU) or noCache:
+            self.buildImage(model, downloadDockerfile=downloadDockerfile, noCache=noCache, useGPU=useGPU)
 
         # run container
         self.runContainerSync(model, tempDir, useGPU=useGPU)

@@ -242,7 +242,7 @@
       <item row="2" column="1">
        <widget class="QCheckBox" name="dockerNoCacheCheckBox">
         <property name="text">
-         <string/>
+         <string>(Will rebuild)</string>
         </property>
        </widget>
       </item>
