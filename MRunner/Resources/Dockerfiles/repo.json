@@ -42,6 +42,18 @@
                     "labels": {
                         "1": "RIGHT_ATRIUM"
                     }
+                },
+                {
+                    "file": "heart_ventricle_left.nii.gz",
+                    "labels": {
+                        "1": "LEFT_VENTRICLE"
+                    }
+                },
+                {
+                    "file": "heart_ventricle_right.nii.gz",
+                    "labels": {
+                        "1": "RIGHT_VENTRICLE"
+                    }
                 }
             ]            
         },
