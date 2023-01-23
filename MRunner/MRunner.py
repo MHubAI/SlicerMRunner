@@ -163,7 +163,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # exract model names from repo definition and feed into dropdown
         for model in self.repo.getModels():
-            self.ui.modelComboBox.addItem(f"{model.getName()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
+            self.ui.modelComboBox.addItem(f"{model.getLabel()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
 
         # test table view
         self.ui.modelTableWidget.setRowCount(2)
@@ -311,7 +311,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # output name 
         if inputVolume:
-            self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getName()}]"
+            self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getLabel()}]"
 
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
@@ -374,6 +374,11 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # check if the model supports gpu (effects wheather use gpu flag can be set for this model)
         self.updateGpuCheckBox(model)
+
+        # output name 
+        inputVolume = self._parameterNode.GetNodeReference("InputVolume")
+        if inputVolume:
+            self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getLabel()}]"
 
         # batch modification done
         self._parameterNode.EndModify(wasModified)

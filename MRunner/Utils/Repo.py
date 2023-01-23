@@ -206,6 +206,9 @@ class RepositoryModel:
     def getName(self) -> str:
         return str(self.data['name'])
 
+    def getLabel(self) -> str:
+        return str(self.data['label'])
+
     def getType(self) -> RepositoryModelType:
         return RepositoryModelType(self.data['type'])
 

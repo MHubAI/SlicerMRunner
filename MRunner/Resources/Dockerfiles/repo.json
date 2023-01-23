@@ -1,7 +1,8 @@
 {
     "models": [
         {
-            "name": "Thresholder",
+            "name": "thresholder",
+            "label": "Thresholder",
             "dockerfile": {
                 "gpu": false,
                 "pull": false,
@@ -22,7 +23,26 @@
             ]            
         },
         {
-            "name": "TotalSegmentator",
+            "name": "totalsegmentator",
+            "label": "TotalSegmentator Demo",
+            "dockerfile": {
+                "gpu": true,
+                "pull": true,
+                "download": "docker-dev"
+            },
+            "type": "segmentation",
+            "config": {},
+            "output": {
+                "AORTA": "aorta.nii.gz",
+                "LEFT_ATRIUM": "heart_atrium_left.nii.gz",
+                "LEFT_VENTRICLE": "heart_ventricle_left.nii.gz",
+                "RIGHT_ATRIUM": "heart_atrium_right.nii.gz",
+                "RIGHT_VENTRICLE": "heart_ventricle_right.nii.gz"
+            }     
+        },
+        {
+            "name": "totalsegmentator",
+            "label": "TotalSegmentator",
             "dockerfile": {
                 "gpu": true,
                 "pull": true,
@@ -138,7 +158,8 @@
             }     
         },
         {
-            "name": "Platipy",
+            "name": "platipy",
+            "label": "Platipy",
             "dockerfile": {
                 "gpu": true,
                 "pull": true,
