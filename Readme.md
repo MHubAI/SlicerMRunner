@@ -7,6 +7,9 @@ MHub is a repository for Machine Learning models for medical imaging. The goal o
 
 Find out more at [mhub.ai](https://mhub.ai) and check out the mhub [GitHub repository](https://github.com/AIM-Harvard/mhub).
 
+## Requirements
+We only need [Docker](https://docs.docker.com/get-docker/) 🐳 to be installed on your system. That's it.
+
 ## Installation
 
 This plugin is under active development. To test it in 3D slicer follow these steps:
