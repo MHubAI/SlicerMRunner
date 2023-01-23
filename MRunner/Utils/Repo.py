@@ -140,6 +140,62 @@ class ExpectedOutputFileLabel:
     def getID(self) -> int:
         return self.label
 
+
+class RepositoryModelDockerfile:
+    def __init__(self, model: 'RepositoryModel', data: any) -> None:
+        self.model = model
+        self.data = data
+
+        # constants (docker tags for cuda and non-cuda version)
+        #  separated due to their significant difference in size
+        self.REPOSITORY = "mhubai"
+        self.IMAGE_TAG_CUDA = "cuda12.0"
+        self.IMAGE_TAG_NOCUDA = "nocuda"
+
+    def isGpuUsable(self) -> bool:
+        if "gpu" in self.data and isinstance(self.data["gpu"], bool): 
+            return self.data["gpu"]
+        else:
+            return False # NOTE: default value, might be changed to True
+
+    def getImageName(self) -> str:
+        return  self.model.getName().lower()
+
+    def getImageTag(self, useGPU: bool = False) -> str:
+        return self.IMAGE_TAG_CUDA if useGPU else self.IMAGE_TAG_NOCUDA
+
+    def getImageRef(self, useGPU: bool = False) -> str:
+        return self.REPOSITORY + "/" + self.getImageName() + ":" + self.getImageTag(useGPU)
+
+    def isPullableFromRepository(self) -> bool:
+        return bool(self.data["pull"])
+
+    def isDownloadableFromRepository(self) -> bool:
+        if "download" in self.data:
+            if isinstance(self.data["download"], str):
+                return True
+            elif isinstance(self.data["download"], bool):
+                return self.data["download"]
+        else:
+            return False
+
+    def getDownloadBranch(self) -> Optional[str]:
+        if "download" in self.data:
+            if isinstance(self.data["download"], str):
+                return self.data["download"]
+            elif isinstance(self.data["download"], bool):
+                return "main"
+        else: 
+            return None
+
+    def getDownloadPath(self, useGPU: bool = False) -> str:
+        branch = self.getDownloadBranch()
+        assert branch is not None
+        mhub_model_dir = self.getImageName()
+        image_tag = self.getImageTag(useGPU)
+        return f"https://raw.githubusercontent.com/AIM-Harvard/mhub/{branch}/mhub/{mhub_model_dir}/dockerfiles/{image_tag}/Dockerfile"
+       
+
 class RepositoryModel:
 
     def __init__(self, repo: Repository, data: any) -> None:
@@ -153,11 +209,8 @@ class RepositoryModel:
     def getType(self) -> RepositoryModelType:
         return RepositoryModelType(self.data['type'])
 
-    def getDockerfile(self) -> str:
-        return self.data['dockerfile']
-
-    def getDockerTag(self) -> str:
-        return self.data['tag']
+    def getDockerfile(self) -> RepositoryModelDockerfile:
+        return RepositoryModelDockerfile(self, self.data['dockerfile'])
     
     def getConfig(self) -> None:
         return None

@@ -142,7 +142,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # (in the selected parameter node).
         self.ui.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
-        #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
+        self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode)
         self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
         self.ui.downloadDockerfileCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
@@ -163,7 +163,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # exract model names from repo definition and feed into dropdown
         for model in self.repo.getModels():
-            self.ui.modelComboBox.addItem(f"{model.getName()} ({model.getDockerTag()})", model)
+            self.ui.modelComboBox.addItem(f"{model.getName()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
 
         # test table view
         self.ui.modelTableWidget.setRowCount(2)
@@ -283,14 +283,24 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.outputSegmentationSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputSegmentation"))
         #self.ui.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
         self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
-        self.ui.downloadDockerfileCheckBox.checked = (self._parameterNode.GetParameter("DownloadDockerfile") == "true")
-        self.ui.gpuCheckBox.checked = (self._parameterNode.GetParameter("UseGPU") == "true")
         self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
         # check if docker is installed
         isDockerInstalled = self.logic.checkForDocker()
 
+        # model selection
+        model = self.ui.modelComboBox.currentData
+
+        # check options (how to get the docker image, either downloading the file from repo or pulling from dockerhub)
+        self.updateDownloadDockerfileCheckBox(model)
+
+        # check if the model supports gpu (effects wheather use gpu flag can be set for this model)
+        self.updateGpuCheckBox(model)
+
         # Update buttons states and tooltips
+        # TODO: Image must be either downloadable or pullable.
+        #       This won't be enforced for now, as we keep the option 
+        #       to build the image outside of the plugins lifecycle during development. 
         inputVolume = self._parameterNode.GetNodeReference("InputVolume")
         if inputVolume and isDockerInstalled:
             self.ui.applyButton.toolTip = "Start segmentation"
@@ -299,12 +309,44 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.applyButton.toolTip = "Select input volume nodes"
             self.ui.applyButton.enabled = False
 
+        # output name 
         if inputVolume:
-            model = self.ui.modelComboBox.currentData
             self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getName()}]"
 
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
+
+
+    def updateDownloadDockerfileCheckBox(self, model):
+        modelCanDownload = model.getDockerfile().isDownloadableFromRepository()
+        modelCanPull = model.getDockerfile().isPullableFromRepository()
+        
+        if not modelCanDownload:
+            # model can not be downloaded -> remove the option of downloading a model
+            self.ui.downloadDockerfileCheckBox.checked = False
+            self.ui.downloadDockerfileCheckBox.enabled = False
+        elif not modelCanPull:
+            # model can be downloaded but not pulled -> enforce download 
+            self.ui.downloadDockerfileCheckBox.checked = True
+            self.ui.downloadDockerfileCheckBox.enabled = False
+        else:
+            # leave choice free to the user
+            # NOTE: case no download and no pull not catched (see self.updateGUIFromParameterNode())
+            # --> in case downlaod is disabled and pulling is not possible, the image must be provided or the plugin will fail.
+            self.ui.downloadDockerfileCheckBox.checked = (self._parameterNode.GetParameter("DownloadDockerfile") == "true")
+            self.ui.downloadDockerfileCheckBox.enabled = True
+
+
+    def updateGpuCheckBox(self, model):
+        modelCanUseGPU = model.getDockerfile().isGpuUsable()
+
+        if not modelCanUseGPU:
+            self.ui.gpuCheckBox.checked = False
+            self.ui.gpuCheckBox.enabled = False
+        else:
+            self.ui.gpuCheckBox.checked = (self._parameterNode.GetParameter("UseGPU") == "true")
+            self.ui.gpuCheckBox.enabled = True
+
 
     def updateParameterNodeFromGUI(self, caller=None, event=None):
         """
@@ -323,8 +365,17 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetParameter("DownloadDockerfile", "true" if self.ui.downloadDockerfileCheckBox.checked else "false")
         self._parameterNode.SetParameter("UseGPU", "true" if self.ui.gpuCheckBox.checked else "false")
         self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
-        # self._parameterNode.SetNodeReferenceID("OutputVolumeInverse", self.ui.invertedOutputSelector.currentNodeID)
 
+        # model selection
+        model = self.ui.modelComboBox.currentData
+
+        # check options (how to get the docker image, either downloading the file from repo or pulling from dockerhub)
+        self.updateDownloadDockerfileCheckBox(model)
+
+        # check if the model supports gpu (effects wheather use gpu flag can be set for this model)
+        self.updateGpuCheckBox(model)
+
+        # batch modification done
         self._parameterNode.EndModify(wasModified)
 
     def addLog(self, text):
@@ -408,9 +459,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """
         ScriptedLoadableModuleLogic.__init__(self)
 
-        self.IMAGE_TAG_CUDA = "cuda12.0"
-        self.IMAGE_TAG_NOCUDA = "nocuda"
-
         self.logCallback = None
         self.resourcePath = None
         self.repo = None
@@ -488,12 +536,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         # raw-path using the docker-dev branch instead of main.
         repo_json_url = ""
 
-    def getDockerImageRefForModel(self, model, useGPU=False):
-        image_name = model.getDockerTag()
-        image_tag = self.IMAGE_TAG_CUDA if useGPU else self.IMAGE_TAG_NOCUDA
-        image_ref = f"{image_name}:{image_tag}"
-
-        return image_ref
 
     def addDockerPath(self):
         # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
@@ -519,6 +561,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """
         Docker is required on the system to be installed and running. This function gets the docker executable and calls docker info for detailed information on the docker installation. If docker is not installed, fetching the executable will fail on unix systems and return None (but not on windows).
         TODO: version requirements might be added after evaluation.
+
+        > docker info --format '{{json .}}'
         """
 
         print("os: ", os.name)
@@ -557,6 +601,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
     def checkImage(self, model, useGPU=False):
         """Search available docker images. Returns true if the image is available. 
+           > docker images --format '{{.Repository}}:{{.Tag}}'
         """
         #
         import subprocess
@@ -573,24 +618,41 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
 
         # search image
-        image_ref = self.getDockerImageRefForModel(model, useGPU=useGPU) # image_name:image_tag
+        image_ref =  model.getDockerfile().getImageRef(useGPU=useGPU) # image_name:image_tag
 
         #
         return image_ref in images_lst
 
 
-    def pullImage(self, image_tag):
-        pass
+    def pullImage(self, model, useGPU = False):
+        """Pull image from docker hub.
+           > docker pull [OPTIONS] NAME[:TAG|@DIGEST]
+        """
+
+        #
+        import subprocess
+        
+        #
+        dockerExecPath = self.getDockerExecutable()
+        assert dockerExecPath is not None, "DockerExecPath is None."
+
+        #
+        image_ref = model.getDockerfile().getImageRef(useGPU=useGPU)
+        command =  [dockerExecPath, 'pull', image_ref]
+
+        # run command
+        self.log("Running " + " ".join(command))
+        proc = slicer.util.launchConsoleProcess(command)
+        self.logProcessOutput(proc)
+        self.log("Image pulled.")
 
 
     def downloadDockerfile(self, model, useGPU=False):
+        """Downlaods the dockerfile from mhub repository to locally build image.
+        """
 
-        mhub_model_dir = model.getName().lower()
-        image_tag = self.IMAGE_TAG_CUDA if useGPU else self.IMAGE_TAG_NOCUDA
-
-        # raw-path using the docker-dev branch instead of main.
-        dockerfile_url = f"https://raw.githubusercontent.com/AIM-Harvard/mhub/docker-dev/mhub/{mhub_model_dir}/dockerfiles/{image_tag}/Dockerfile"
-        self.log(f"Downloading Dockerfile from {dockerfile_url}")
+        # get download url from repository definition
+        dockerfile_url = model.getDockerfile().getDownloadPath(useGPU)
 
         # create temp folder 
         dockerfile_dir = slicer.util.tempDirectory()
@@ -605,26 +667,23 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
 
     def buildImage(self, model, downloadDockerfile=True, noCache=False, useGPU=False):
-        """ Build a image.
+        """ Build a image locally.
+            > docker build -t NAME[:TAG|@DIGEST] --build-arg USER_ID=1001 --build-arg GROUP_ID=1001 --platform linux/amd64 [--no-cache]
         """
 
-        # load or download dockerfile
-        if downloadDockerfile:
-            dockerDir = self.downloadDockerfile(model, useGPU=useGPU)
-        else:
-            dockerDir = self.resourcePath(os.path.join('Dockerfiles', model.getDockerfile())) if model is not None else None
-            assert dockerDir is not None, "Local dockerfile not found. Try download option."
+        # download dockerfile
+        dockerDir = self.downloadDockerfile(model, useGPU=useGPU)
 
         if not os.path.isdir(dockerDir):
             # TODO: handle error in calling methods
-            raise FileNotFoundError(f"Cannot build image. Dockerfile for '{model.getName()} ({self.getDockerImageRefForModel(model, useGPU=useGPU)})' not found at specified location '{dockerDir}'.")
+            raise FileNotFoundError(f"Cannot build image. Dockerfile for '{model.getName()} ({model.getDockerfile().getImageRef(useGPU=useGPU)})' not found at specified location '{dockerDir}'.")
 
-        #
+        # prepare docker build command
         dockerExecPath = self.getDockerExecutable()
         assert dockerExecPath is not None, "DockerExecPath is None."
 
         command =  [dockerExecPath, 'build']
-        command += ['-t', self.getDockerImageRefForModel(model, useGPU=useGPU)]
+        command += ['-t', model.getDockerfile().getImageRef(useGPU=useGPU)]
         command += ['--build-arg', 'USER_ID=1001']
         command += ['--build-arg', 'GROUP_ID=1001']
         command += ['--platform', 'linux/amd64']
@@ -638,7 +697,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         command += [dockerDir]
 
-        # run
+        # run command
         self.log("Running " + " ".join(command))
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
@@ -662,7 +721,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             command += ["--gpus", "all"]
 
         # image to create container from
-        command += [self.getDockerImageRefForModel(model, useGPU=useGPU)]
+        command += [model.getDockerfile().getImageRef(useGPU=useGPU)]
 
         # slcier entrypoint
         mhub_model_dir = model.getName().lower()
@@ -754,7 +813,14 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         # check / build image
         if not self.checkImage(model, useGPU=useGPU) or noCache:
-            self.buildImage(model, downloadDockerfile=downloadDockerfile, noCache=noCache, useGPU=useGPU)
+
+            # download dockerfile and build image locally if download opion is enabled
+            if downloadDockerfile:
+                self.buildImage(model, downloadDockerfile=downloadDockerfile, noCache=noCache, useGPU=useGPU)
+            
+            # if not, just pull the image from dockerhub
+            else:
+                self.pullImage(model, useGPU=useGPU)
 
         # run container
         self.runContainerSync(model, tempDir, useGPU=useGPU)

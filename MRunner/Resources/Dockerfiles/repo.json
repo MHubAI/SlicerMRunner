@@ -2,8 +2,11 @@
     "models": [
         {
             "name": "Thresholder",
-            "dockerfile": "Thresholder/",
-            "tag": "mhubai/thresholder",
+            "dockerfile": {
+                "gpu": false,
+                "pull": false,
+                "download": "docker-dev"
+            },
             "type": "segmentation",
             "config": {},
             "output": [
@@ -20,8 +23,11 @@
         },
         {
             "name": "TotalSegmentator",
-            "dockerfile": "TotalSegmentator/",
-            "tag": "mhubai/totalsegmentator",
+            "dockerfile": {
+                "gpu": true,
+                "pull": true,
+                "download": "docker-dev"
+            },
             "type": "segmentation",
             "config": {},
             "output": [
@@ -59,8 +65,11 @@
         },
         {
             "name": "Platipy",
-            "dockerfile": "",
-            "tag": "mhubai/platipy",
+            "dockerfile": {
+                "gpu": true,
+                "pull": true,
+                "download": "docker-dev"
+            },
             "type": "segmentation",
             "config": {},
             "output": [

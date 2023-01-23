@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>373</width>
-    <height>616</height>
+    <width>432</width>
+    <height>622</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -137,7 +137,7 @@
          <string>If checked, values above threshold are set to 0. If unchecked, values below are set to 0.</string>
         </property>
         <property name="text">
-         <string/>
+         <string>(Instead of pulling)</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -242,7 +242,7 @@
       <item row="2" column="1">
        <widget class="QCheckBox" name="dockerNoCacheCheckBox">
         <property name="text">
-         <string>(Will rebuild)</string>
+         <string>(Will rebuild or pull)</string>
         </property>
        </widget>
       </item>
