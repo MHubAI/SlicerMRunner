@@ -1,4 +1,4 @@
-# MHub Runner (3DSlicer Plugin)
+![MHub Runner (3DSlicer Plugin)](https://github.com/AIM-Harvard/SlicerMHubRunner/blob/master/MRunner/Resources/Icons/Name.png?raw=true)
 
 MHub Runner is a 3D Slicer plugin that seamlessly integrates Deep Learning models from the Medical Hub repository (mhub) into 3D Slicer.
 
@@ -22,6 +22,8 @@ This plugin is under active development. To test it in 3D slicer follow these st
 # Usage
 
 First, open a volume in Slicer on which you want to run the plugin. You can use your own data or the slicer sample data. Slicer sample data can be found at *File > Download Sample Data*, to download a chest CT scan click on *CTChest*. Now open the *MRunner* module (navigate to *3D Slicer > Modules > Examples > MRunner*). You will now see the graphical user interface (GUI) of the module.
+
+![Plugin Module Overview](https://raw.githubusercontent.com/AIM-Harvard/SlicerMHubRunner/master/MRunner/Resources/Icons/PluginOverview.png?token=GHSAT0AAAAAABYHSGFF42PNGDWXS3I3YZR4Y6OSKOA)
 
 The *MRunner* module has four sections. The *model selector* is the **first section** at the top of the GUI. Here you select one of the models from *MHub* that you want to run. The **second section** is the *input selection* where you can select an input volume to load into the model. The **third section** is the *output selection*. Since we are only providing segmentation models for now, you select here where the generated segmentations will be stored. You have several options, for example you can create a new segmentation node or select an existing one which will be overwritten. The **fourth section** offers some *advanced options*. Here may can check the *Use GPU* checkbox to download a cuda-enabled image and run the model with GPU acceleration.
 
