@@ -333,7 +333,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             # leave choice free to the user
             # NOTE: case no download and no pull not catched (see self.updateGUIFromParameterNode())
             # --> in case downlaod is disabled and pulling is not possible, the image must be provided or the plugin will fail.
-            self.ui.downloadDockerfileCheckBox.checked = (self._parameterNode.GetParameter("DownloadDockerfile") == "true")
+            self.ui.downloadDockerfileCheckBox.checked = False #(self._parameterNode.GetParameter("DownloadDockerfile") == "true")
             self.ui.downloadDockerfileCheckBox.enabled = True
 
 
@@ -344,7 +344,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.gpuCheckBox.checked = False
             self.ui.gpuCheckBox.enabled = False
         else:
-            self.ui.gpuCheckBox.checked = (self._parameterNode.GetParameter("UseGPU") == "true")
+            self.ui.gpuCheckBox.checked = True #(self._parameterNode.GetParameter("UseGPU") == "true")
             self.ui.gpuCheckBox.enabled = True
 
 
