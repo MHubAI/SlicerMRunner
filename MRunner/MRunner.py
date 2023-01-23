@@ -752,7 +752,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             for ofl in ofls:
                 segment = ofl.getSegment()
                 segmentName = segment.getName()
-                segmentRGB = segment.getColor().getComponentsAsFloat()
+                segmentColor = segment.getColor()
+                segmentRGB = segmentColor.getComponentsAsFloat() if segmentColor is not None else [0, 0, 0]
                 labelValue = ofl.getID()
 
                 self.log(f"Importing {segmentName} (label: {labelValue}, file: {fileName})")

@@ -219,7 +219,7 @@ class RepositoryModel:
         output_files = []
 
         # short form : {segment_id1: file_name1, segment_id2: file_name2, ...}
-        if isinstance(self.data['output'], object):
+        if isinstance(self.data['output'], dict):
             for segment_id in self.data['output']:
                 file_name = self.data['output'][segment_id]
 
