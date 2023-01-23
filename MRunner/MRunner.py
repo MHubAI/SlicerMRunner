@@ -383,10 +383,13 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # batch modification done
         self._parameterNode.EndModify(wasModified)
 
-    def addLog(self, text):
+    def addLog(self, text, setStep=False):
         """Append text to log window
         """
-        self.ui.statusLabel.appendPlainText(text)
+        if not setStep:
+            self.ui.statusLabel.appendPlainText(text)
+        else:
+            self.ui.stepLabel.plainText = text
         slicer.app.processEvents()  # force update
 
     def onApplyButton(self):
@@ -397,6 +400,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             # clear text field
             self.ui.statusLabel.plainText = ''
+            self.ui.stepLabel.plainText = ''
 
             # setup python requirements 
             # self.logic.setupPythonRequirements() NOTE: moved to setup()
@@ -479,10 +483,10 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             parameterNode.SetParameter("Invert", "false")
 
 
-    def log(self, text):
+    def log(self, text, setStep = False):
         logging.info(text)
         if self.logCallback:
-            self.logCallback(text)
+            self.logCallback(text, setStep)
 
 
     def logProcessOutput(self, proc):
@@ -549,7 +553,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             os.environ["PATH"] += os.pathsep + '/usr/local/bin'
 
 
-    def getDockerExecutable(self, verbose=True):
+    def getDockerExecutable(self, verbose=False):
         dockerExecPath = None
         if os.name == 'nt': 
             dockerExecPath = "docker" # for windows just set docker
@@ -646,7 +650,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         command =  [dockerExecPath, 'pull', image_ref]
 
         # run command
-        self.log("Running " + " ".join(command))
+        self.log(f"Pulling image ({ ' '.join(command)})", setStep=True)
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
         self.log("Image pulled.")
@@ -703,7 +707,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         command += [dockerDir]
 
         # run command
-        self.log("Running " + " ".join(command))
+        self.log(f"Build image ({' '.join(command)})", setStep=True)
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
         self.log("Image build.")
@@ -737,12 +741,15 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             command += containerArguments
 
         # run
-        self.log("Running " + " ".join(command))
+        self.log(f"Run container ({' '.join(command)})", setStep=True)
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
 
 
     def displaySegmentation(self, outputSegmentation, dir, model):
+
+        # log
+        self.log(f"Import segmentations", setStep=True)
 
         # clear output segmentation
         outputSegmentation.GetSegmentation().RemoveAllSegments()
@@ -835,7 +842,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.displaySegmentation(outputSegmentation, tempDir, model)
 
         stopTime = time.time()
-        self.log(f'Processing completed in {stopTime-startTime:.2f} seconds x')
+        self.log(f'Processing completed in {stopTime-startTime:.2f} seconds.', setStep=True)
 
 
 #
