@@ -217,14 +217,24 @@ class RepositoryModel:
 
     def getOutputFiles(self) -> List[ExpectedOutputFile]:
         output_files = []
-        for of_data in self.data['output']:
-            output_files.append(ExpectedOutputFile(of_data))
+
+        # short form : {segment_id1: file_name1, segment_id2: file_name2, ...}
+        if isinstance(self.data['output'], object):
+            for segment_id in self.data['output']:
+                file_name = self.data['output'][segment_id]
+
+                of_data = {
+                    "file": file_name,
+                    "labels": {
+                        "1": segment_id
+                    }
+                }
+
+                output_files.append(ExpectedOutputFile(of_data))
+
+        # long form : [{"file": file_name1, "labels": {"1": segment_id1|custom}}, ...]
+        elif isinstance(self.data['output'], list):
+            for of_data in self.data['output']:
+                output_files.append(ExpectedOutputFile(of_data))
+
         return output_files
-
-    #def getSegments(self) -> List[Segment]:
-    #    segments = []
-    #    for segment_id in self.data['segments']:
-    #        segment = Segment(segment_id)
-    #        segments.append(segment)
-    #    return segments
-
