@@ -48,9 +48,10 @@ class Segment:
         return str(self.data['name'])
 
     def getColor(self) -> Optional['Color']:
-        rgb = self.data["color"].split(",")
-
-        if len(rgb) != 3:
+        try:
+            rgb = self.data["color"].split(",")
+            assert len(rgb) == 3
+        except:
             return None
 
         return Color(*map(int, rgb))
