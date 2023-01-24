@@ -20,19 +20,23 @@ class MRunner(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "MRunner"  # TODO: make this more human readable by adding spaces
-        self.parent.categories = ["Examples"]  # TODO: set categories (folders where the module shows up in the module selector)
-        self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["John Doe (AnyWare Corp.)"]  # TODO: replace with "Firstname Lastname (Organization)"
+        self.parent.title = "MRunner"               # TODO: make this more human readable by adding spaces
+        self.parent.categories = ["Examples"]       # TODO: set categories (folders where the module shows up in the module selector)
+        self.parent.dependencies = []               # TODO: add here list of module names that this module requires
+        self.parent.contributors = ["Leonard Nürnberg (AIM, BWH, UM)"]  # TODO: replace with "Firstname Lastname (Organization)"
+        
         # TODO: update with short description of the module and a link to online module documentation
         self.parent.helpText = """
-This is an example of scripted loadable module bundled in an extension.
-See more information in <a href="https://github.com/organization/projectname#MRunner">module documentation</a>.
+MHub Runner is a 3D Slicer plugin that seamlessly integrates Deep Learning models from the Medical Hub repository (mhub) into 3D Slicer.
+<br/><br/>
+MHub is a repository for Machine Learning models for medical imaging. The goal of mhub is to make these models universally accessible by containerizing the entire model pipeline and standardizing the I/O interface.
+<br/><br/>
+See more information in the <a href="https://github.com/AIM-Harvard/SlicerMHubRunner">module documentation</a>.
 """
         # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = """
-This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc., Andras Lasso, PerkLab,
-and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
+This extension was originally developed by Leonard Nürnberg (Artificial Intelligence in Medicine Program, Harvard University / Mass General Brigham) with Dockerfiles created by Dennis Bontempi (Artificial Intelligence in Medicine Program, Harvard University / Mass General Brigham). <br/>
+Find out more about the mhub.ai project on the <a href="https://mhub.ai">mhub.ai website</a> and <a href="https://github.com/AIM-Harvard/mhub">GitHub repository</a>.
 """
 
         # Additional initialization step after application startup is complete
@@ -107,6 +111,11 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic = None
         self._parameterNode = None
         self._updatingGUIFromParameterNode = False
+        self._updatingParameterNodeFromGUI = False
+
+        # cache time expensive check results (run async later)
+        self._imageLocallyAvailable = ""
+        self._isDockerInstalled = None
 
     def setup(self):
         """
@@ -143,12 +152,11 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
-        #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode)
+        #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode) # -> causes GetSegmentation() in process to be None on the first apply only
         self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
         self.ui.downloadDockerfileCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.gpuCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.dockerNoCacheCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
-        #self.ui.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
 
         # install required python packages and add file-path to pythonpath (NOTE: the latter seems only required on linux?)
@@ -244,6 +252,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             if firstVolumeNode:
                 self._parameterNode.SetNodeReferenceID("InputVolume", firstVolumeNode.GetID())
 
+
     def setParameterNode(self, inputParameterNode):
         """
         Set and observe parameter node.
@@ -265,6 +274,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Initial GUI update
         self.updateGUIFromParameterNode()
 
+
     def updateGUIFromParameterNode(self, caller=None, event=None):
         """
         This method is called whenever parameter node is changed.
@@ -274,6 +284,8 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if self._parameterNode is None or self._updatingGUIFromParameterNode:
             return
 
+        print("--> updateGUIFromParameterNode")
+
         # Make sure GUI changes do not call updateParameterNodeFromGUI (it could cause infinite loop)
         self._updatingGUIFromParameterNode = True
 
@@ -282,42 +294,31 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.outputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolume"))
         #self.ui.outputSegmentationSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputSegmentation"))
         #self.ui.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
-        self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
-        self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
+        #self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
+        #self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
-        # check if docker is installed
-        isDockerInstalled = self.logic.checkForDocker()
-
-        # model selection
+        # get selected model
         model = self.ui.modelComboBox.currentData
 
-        # check options (how to get the docker image, either downloading the file from repo or pulling from dockerhub)
+        # update advanced option check boxes
         self.updateDownloadDockerfileCheckBox(model)
-
-        # check if the model supports gpu (effects wheather use gpu flag can be set for this model)
         self.updateGpuCheckBox(model)
 
-        # Update buttons states and tooltips
-        # TODO: Image must be either downloadable or pullable.
-        #       This won't be enforced for now, as we keep the option 
-        #       to build the image outside of the plugins lifecycle during development. 
-        inputVolume = self._parameterNode.GetNodeReference("InputVolume")
-        if inputVolume and isDockerInstalled:
-            self.ui.applyButton.toolTip = "Start segmentation"
-            self.ui.applyButton.enabled = True
-        else:
-            self.ui.applyButton.toolTip = "Select input volume nodes"
-            self.ui.applyButton.enabled = False
+        # update output
+        self.updateOutputSegmentationSelectorBasename(model)
 
-        # output name 
-        if inputVolume:
-            self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getLabel()}]"
+        # update Apply button enabled state
+        self.updateApplyButtonText(model)
+        self.updateApplyButtonEnabled()
 
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
 
-
     def updateDownloadDockerfileCheckBox(self, model):
+        """ GUI-UPDATE
+            Set the advanced option download dockerfile checkbox based on model definition.
+        """
+
         modelCanDownload = model.getDockerfile().isDownloadableFromRepository()
         modelCanPull = model.getDockerfile().isPullableFromRepository()
         
@@ -333,19 +334,80 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             # leave choice free to the user
             # NOTE: case no download and no pull not catched (see self.updateGUIFromParameterNode())
             # --> in case downlaod is disabled and pulling is not possible, the image must be provided or the plugin will fail.
-            self.ui.downloadDockerfileCheckBox.checked = False #(self._parameterNode.GetParameter("DownloadDockerfile") == "true")
+            self.ui.downloadDockerfileCheckBox.checked = (self._parameterNode.GetParameter("DownloadDockerfile") == "true")
             self.ui.downloadDockerfileCheckBox.enabled = True
 
 
     def updateGpuCheckBox(self, model):
+        """ GUI-UPDATE
+            Set the advanced option useUGPU checkbox based on model definition.
+        """
+
         modelCanUseGPU = model.getDockerfile().isGpuUsable()
 
         if not modelCanUseGPU:
             self.ui.gpuCheckBox.checked = False
             self.ui.gpuCheckBox.enabled = False
         else:
-            self.ui.gpuCheckBox.checked = True #(self._parameterNode.GetParameter("UseGPU") == "true")
+            self.ui.gpuCheckBox.checked = (self._parameterNode.GetParameter("UseGPU") == "true")
             self.ui.gpuCheckBox.enabled = True
+
+
+    def updateApplyButtonText(self, model):
+        """ GUI-UPDATE
+            Set the apply button text to indicate if (re-)build or pull is required on apply.
+        """
+
+        # check if docker image is available (not cached)
+        try:
+            imageLocallyAvailable = self.logic.checkImage(model, useGPU=self.ui.gpuCheckBox.checked)
+        except:
+            imageLocallyAvailable = False
+        self._imageLocallyAvailable = imageLocallyAvailable
+
+        # set button text
+        if imageLocallyAvailable and not self.ui.dockerNoCacheCheckBox.checked:
+            self.ui.applyButton.text = "Apply (run model)"
+        else:
+            self.ui.applyButton.text = "Pull / Build image and Apply (run model)"
+
+
+    def updateApplyButtonEnabled(self):
+        """ GUI-UPDATE
+            Disable the apply button if docker is not installed or no input volume is selected.
+        """
+
+        # TODO: Image must be either downloadable or pullable.
+        #       This won't be enforced for now, as we keep the option 
+        #       to build the image outside of the plugins lifecycle during development. 
+        
+        # check if docker is installed (cache this check)
+        if self._isDockerInstalled is None:
+            isDockerInstalled = self.logic.checkForDocker()
+            self._isDockerInstalled = isDockerInstalled
+        else:
+            isDockerInstalled = self._isDockerInstalled
+
+        # check if input volume is available
+        inputVolume = self._parameterNode.GetNodeReference("InputVolume")
+
+        # set tooltip, enabled state and text
+        if inputVolume and isDockerInstalled:
+            self.ui.applyButton.toolTip = "Start segmentation"
+            self.ui.applyButton.enabled = True
+        else:
+            self.ui.applyButton.toolTip = "Select input volume nodes"
+            self.ui.applyButton.enabled = False
+
+
+    def updateOutputSegmentationSelectorBasename(self, model):
+        """ GUI-UPDATE?
+            Set the basename of the output node selector.
+        """
+
+        inputVolume = self._parameterNode.GetNodeReference("InputVolume")
+        if inputVolume:
+            self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getLabel()}]"
 
 
     def updateParameterNodeFromGUI(self, caller=None, event=None):
@@ -357,6 +419,9 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if self._parameterNode is None or self._updatingGUIFromParameterNode:
             return
 
+        print("--> updateParameterNodeFromGUI")
+
+        self._updatingParameterNodeFromGUI = True
         wasModified = self._parameterNode.StartModify()  # Modify all properties in a single batch
 
         self._parameterNode.SetNodeReferenceID("InputVolume", self.ui.inputSelector.currentNodeID)
@@ -366,22 +431,24 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetParameter("UseGPU", "true" if self.ui.gpuCheckBox.checked else "false")
         self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
 
-        # model selection
+        # get selected model
         model = self.ui.modelComboBox.currentData
 
-        # check options (how to get the docker image, either downloading the file from repo or pulling from dockerhub)
+        # update advanced option check boxes
         self.updateDownloadDockerfileCheckBox(model)
-
-        # check if the model supports gpu (effects wheather use gpu flag can be set for this model)
         self.updateGpuCheckBox(model)
 
-        # output name 
-        inputVolume = self._parameterNode.GetNodeReference("InputVolume")
-        if inputVolume:
-            self.ui.outputSegmentationSelector.baseName = f"{inputVolume.GetName()} [{model.getLabel()}]"
+        # update output
+        self.updateOutputSegmentationSelectorBasename(model)
+
+        # update Apply button enabled state
+        self.updateApplyButtonText(model)
+        self.updateApplyButtonEnabled()
 
         # batch modification done
+        self._updatingParameterNodeFromGUI = False
         self._parameterNode.EndModify(wasModified)
+
 
     def addLog(self, text, setStep=False):
         """Append text to log window
