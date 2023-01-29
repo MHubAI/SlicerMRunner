@@ -12,7 +12,11 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QComboBox" name="modelComboBox"/>
+    <widget class="QComboBox" name="modelComboBox">
+     <property name="toolTip">
+      <string>Select the algorithm to run on your data.</string>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QListWidget" name="modelListWidget"/>
@@ -134,7 +138,7 @@
       <item row="0" column="1">
        <widget class="QCheckBox" name="downloadDockerfileCheckBox">
         <property name="toolTip">
-         <string>If checked, values above threshold are set to 0. If unchecked, values below are set to 0.</string>
+         <string>Dockerfiles are pulled from our Dockerhub repository (mhubai) via docker pull. Instead, you can build the image locally on your machine by downloading the dockerfile into a temporary directory.</string>
         </property>
         <property name="text">
          <string>(Instead of pulling)</string>
@@ -227,6 +231,9 @@
       </item>
       <item row="1" column="1">
        <widget class="QCheckBox" name="gpuCheckBox">
+        <property name="toolTip">
+         <string>For all models that support GPU acceleration, enable the UseGPU flag to run the model in GPU mode. This flag is set by default for supported models. When it is set, we use a Docker base image that bundles all requirements, e.g., cuda. If you are using a machine without a GPU, you can uncheck this option to use the lightweight base image instead. Note that not all models support CPU-only mode. For those models that do, the execution time is likely to be much higher when running without GPU acceleration.</string>
+        </property>
         <property name="text">
          <string>(Select only if available)</string>
         </property>
@@ -241,6 +248,9 @@
       </item>
       <item row="2" column="1">
        <widget class="QCheckBox" name="dockerNoCacheCheckBox">
+        <property name="toolTip">
+         <string>During execution, we always check if the image is already available on the local system. If it is not, we initiate either a Docker pull or a Docker build after downloading the Dockerfile. If you select this option, a push or build will be forced even if the image is already available locally. If the Download Dockerfile option is enabled, the image is downloaded and built locally with the --no-cache flag set.</string>
+        </property>
         <property name="text">
          <string>(Will rebuild or pull)</string>
         </property>
