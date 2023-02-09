@@ -199,6 +199,26 @@
                     }
                 }
             ]            
+        },
+        {
+            "name": "nnunet_liver",
+            "label": "nnUNet Liver (Task003)",
+            "dockerfile": {
+                "gpu": true,
+                "pull": true,
+                "download": "docker-dev"
+            },
+            "type": "segmentation",
+            "config": {},
+            "output": [
+                {
+                    "file": "liver.nii.gz",
+                    "labels": {
+                        "1": "LIVER",
+                        "2": "LIVER_CANCER"
+                    }
+                }                
+            ]
         }
     ]
 }
