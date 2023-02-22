@@ -176,8 +176,7 @@ class RepositoryModelDockerfile:
                 return True
             elif isinstance(self.data["download"], bool):
                 return self.data["download"]
-        else:
-            return False
+        return False
 
     def getDownloadBranch(self) -> Optional[str]:
         if "download" in self.data:
@@ -193,7 +192,7 @@ class RepositoryModelDockerfile:
         assert branch is not None
         mhub_model_dir = self.getImageName()
         image_tag = self.getImageTag(useGPU)
-        return f"https://raw.githubusercontent.com/AIM-Harvard/mhub/{branch}/mhub/{mhub_model_dir}/dockerfiles/{image_tag}/Dockerfile"
+        return f"https://raw.githubusercontent.com/MHubAI/models/{branch}/models/{mhub_model_dir}/dockerfiles/{image_tag}/Dockerfile"
        
 
 class RepositoryModel:
