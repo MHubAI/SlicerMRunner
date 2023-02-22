@@ -963,9 +963,6 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         outputSegmentation.SetNodeReferenceID(outputSegmentation.GetReferenceImageGeometryReferenceRole(), inputVolume.GetID())
         outputSegmentation.SetReferenceImageGeometryParameterFromVolumeNode(inputVolume)
 
-        # make origin matching for segmentation and input volume
-        outputSegmentation.SetOrigin(inputVolume.GetOrigin())
-
         # Place segmentation node in the same place as the input volume
         shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
         inputVolumeShItem = shNode.GetItemByDataNode(inputVolume)
