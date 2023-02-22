@@ -815,7 +815,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         # slcier entrypoint
         mhub_model_dir = model.getName().lower()
-        command += ["python3", f"/app/mhub/{mhub_model_dir}/scripts/slicer_run.py"]
+        command += ["python3", f"/app/models/{mhub_model_dir}/scripts/slicer_run.py"]
 
         # commands
         if isinstance(containerArguments, list) and len(containerArguments) > 0:
