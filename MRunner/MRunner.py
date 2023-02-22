@@ -498,22 +498,36 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
     def onTest2ButtonClick(self):
-        self.addLog("-- Test 2 (fake segment import from local sample data) ------------")
+        self.addLog("-- Test 2 (try import from provided data) ------------")
 
-        ## sample data
-        #sample_dir = self.resourcePath("SampleData")
-        #assert os.path.isdir(sample_dir), f"Path not found: {sample_dir}"
-        #self.addLog(f"Sample dir: {sample_dir}")#
+        # get model selection
+        model = self.ui.modelComboBox.currentData
+        self.addLog(f"-- model: {model.getLabel()}")
 
-        ## Create new segmentation node, if not selected yet
-        #if not self.ui.outputSegmentationSelector.currentNode():
-        #    self.ui.outputSegmentationSelector.addNode()
-        #    self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)#
+        # Create new segmentation node, if not selected yet
+        self.addLog(f"-- creating output segmentation node")
+        if not self.ui.outputSegmentationSelector.currentNode():
+            self.ui.outputSegmentationSelector.addNode()
+            self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)
 
-        #self.logic.displaySegmentationsFromYamlFile(
-        #    self.ui.outputSegmentationSelector.currentNode(),
-        #    sample_dir
-        #)
+        outputSegmentation = self.ui.outputSegmentationSelector.currentNode()
+
+        # expected directory
+        dir = "/Users/lenny/Projects/SlicerMHubIntegration/test_data"
+
+        # call logic
+        self.logic.displaySegmentation(outputSegmentation, dir, model)
+
+        inputVolume = self.ui.inputSelector.currentNode()
+        outputSegmentation.SetNodeReferenceID(outputSegmentation.GetReferenceImageGeometryReferenceRole(), inputVolume.GetID())
+        outputSegmentation.SetReferenceImageGeometryParameterFromVolumeNode(inputVolume)
+
+        # Place segmentation node in the same place as the input volume
+        shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
+        inputVolumeShItem = shNode.GetItemByDataNode(inputVolume)
+        studyShItem = shNode.GetItemParent(inputVolumeShItem)
+        segmentationShItem = shNode.GetItemByDataNode(outputSegmentation)
+        shNode.SetItemParent(segmentationShItem, studyShItem)
 
 #
 # MRunnerLogic
@@ -825,10 +839,12 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         ofs = model.getOutputFiles()
         for of in ofs:
             fileName = of.getFileName()
-
-            # iterate all labels within file
             ofls = of.getLabels()
-            for ofl in ofls:
+
+            if len(ofls) == 1:
+                ofl = ofls[0]
+
+                # import this file's single label
                 segment = ofl.getSegment()
                 segmentName = segment.getName()
                 segmentColor = segment.getColor()
@@ -854,6 +870,41 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
                 #self.setTerminology(outputSegmentation, segmentName, segmentId)
                 slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
+
+            else:
+
+                # setup
+                maxLabelValue = len(ofls)
+                opacity = 1
+
+                # create color table for this segmentation task
+                colorTableNode = slicer.vtkMRMLColorTableNode()
+                colorTableNode.SetTypeToUser()
+                colorTableNode.SetNumberOfColors(maxLabelValue+1)
+                colorTableNode.SetName(f"MHub [{model.getLabel()}]")
+
+                # iterate all file labels
+                for ofl in ofls:
+                    segment = ofl.getSegment()
+                    segmentName = segment.getName()
+                    segmentColor = segment.getColor()
+                    segmentRGB = segmentColor.getComponentsAsFloat() if segmentColor is not None else [0, 0, 0]
+                    labelValue = ofl.getID()
+
+                    colorTableNode.SetColor(labelValue, segmentRGB[0], segmentRGB[1], segmentRGB[2], opacity)
+                    colorTableNode.SetColorName(labelValue, segmentName)
+                slicer.mrmlScene.AddNode(colorTableNode)
+
+                # link color table and load the segmentation file 
+                self.log(f"Importing {fileName} (# labels: {maxLabelValue})")
+                outputSegmentation.SetLabelmapConversionColorTableNodeID(colorTableNode.GetID())
+                outputSegmentation.AddDefaultStorageNode()
+                storageNode = outputSegmentation.GetStorageNode()
+                storageNode.SetFileName(os.path.join(dir, fileName))
+                storageNode.ReadData(outputSegmentation)
+
+                # remove the color table
+                slicer.mrmlScene.RemoveNode(colorTableNode)
 
 
     def process(self, model, inputVolume, outputSegmentation, imageThreshold, downloadDockerfile=True, useGPU=False, noCache=False):
@@ -907,6 +958,23 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
 
         # display segmentation
         self.displaySegmentation(outputSegmentation, tempDir, model)
+
+        # Set source volume - required for DICOM Segmentation export
+        outputSegmentation.SetNodeReferenceID(outputSegmentation.GetReferenceImageGeometryReferenceRole(), inputVolume.GetID())
+        outputSegmentation.SetReferenceImageGeometryParameterFromVolumeNode(inputVolume)
+
+        # make origin matching for segmentation and input volume
+        outputSegmentation.SetOrigin(inputVolume.GetOrigin())
+
+        # Place segmentation node in the same place as the input volume
+        shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
+        inputVolumeShItem = shNode.GetItemByDataNode(inputVolume)
+        studyShItem = shNode.GetItemParent(inputVolumeShItem)
+        segmentationShItem = shNode.GetItemByDataNode(outputSegmentation)
+        shNode.SetItemParent(segmentationShItem, studyShItem)
+
+        # cleaning temp dir
+        # TODO: clean temp dir
 
         stopTime = time.time()
         self.log(f'Processing completed in {stopTime-startTime:.2f} seconds.', setStep=True)

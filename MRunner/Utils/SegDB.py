@@ -136,3 +136,14 @@ class YMLSEG:
             segments.append(Segment(segment_id))
  
         return segments
+
+if __name__ == "__main__":
+
+    # test
+    segment_id = "LIVER_CANCER"
+
+    # try segment
+    segment = Segment(segment_id)
+
+    #
+    print(segment)
