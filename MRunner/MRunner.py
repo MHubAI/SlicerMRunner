@@ -8,6 +8,7 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import qt
 
+from Utils import Repo
 
 #
 # MRunner
@@ -32,6 +33,8 @@ MHub Runner is a 3D Slicer plugin that seamlessly integrates Deep Learning model
 MHub is a repository for Machine Learning models for medical imaging. The goal of mhub is to make these models universally accessible by containerizing the entire model pipeline and standardizing the I/O interface.
 <br/><br/>
 See more information in the <a href="https://github.com/AIM-Harvard/SlicerMHubRunner">module documentation</a>.
+<br/><br/>
+If you need help installing or setting up Docker on your machine, you can find a collection of helpful resources and instructions here: <a href="https://github.com/MHubAI#installation">MHubAI/Installation</a>.
 """
         # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = """
@@ -158,6 +161,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.gpuCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.dockerNoCacheCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
+        self.ui.displayLogCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
 
         # install required python packages and add file-path to pythonpath (NOTE: the latter seems only required on linux?)
         self.logic.setupPythonRequirements()
@@ -165,21 +169,28 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
 
         # load repo definition and pass down to logic
-        from Utils.Repo import Repository
-        self.repo = Repository(self.resourcePath('Dockerfiles/repo.json'))
+        self.repo = Repo.Repository(self.resourcePath('Dockerfiles/repo.json'))
         self.logic.repo = self.repo
 
         # exract model names from repo definition and feed into dropdown
         for model in self.repo.getModels():
-            self.ui.modelComboBox.addItem(f"{model.getLabel()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
+            #self.ui.modelComboBox.addItem(f"{model.getLabel()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
+            self.ui.modelComboBox.addItem(f"{model.getLabel()}", model)
 
         # test table view
+        # https://stackoverflow.com/questions/12009134/adding-widgets-to-qtablewidget-pyqt
         self.ui.modelTableWidget.setRowCount(2)
-        self.ui.modelTableWidget.setColumnCount(2)
+        self.ui.modelTableWidget.setColumnCount(3)
         self.ui.modelTableWidget.setColumnWidth(100, 200)
         self.ui.modelTableWidget.setItem(0,0, qt.QTableWidgetItem("Name"))
         self.ui.modelTableWidget.setItem(0,1, qt.QTableWidgetItem("Name"))
+        tbtn = qt.QPushButton(self.ui.modelTableWidget)
+        tbtn.setText('click me')
+        self.ui.modelTableWidget.setCellWidget(0, 2, tbtn)
         self.ui.modelTableWidget.setVisible(False)
+
+        # progress bar
+        self.ui.progressBar.setVisible(False)
 
         # test list view
         self.ui.modelListWidget.addItem("test")
@@ -187,9 +198,13 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Buttons
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
-        self.ui.advancedCollapsibleButton.collapsed = False
+        self.ui.advancedCollapsibleButton.collapsed = True
         self.ui.cmdTest1.connect('clicked(bool)', self.onTest1ButtonClick)
         self.ui.cmdTest2.connect('clicked(bool)', self.onTest2ButtonClick)
+
+        # Image selector
+        self.ui.label_8.setVisible(False)
+        self.ui.dockerImageSelector.setVisible(False)
 
         # disable old components (TODO: remove them later)
         self.ui.imageThresholdSliderWidget.setVisible(False)
@@ -298,7 +313,19 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
         # get selected model
-        model = self.ui.modelComboBox.currentData
+        model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
+
+        # update text
+        modelText = model.getText()
+        if modelText is not None:
+            self.ui.modelInfoText.setText(model.getText())
+            self.ui.modelInfoText.setVisible(True)
+        else:
+            self.ui.modelInfoText.setText("")
+            self.ui.modelInfoText.setVisible(False)
+
+        # update log display 
+        self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
 
         # update advanced option check boxes
         self.updateDownloadDockerfileCheckBox(model)
@@ -432,7 +459,19 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
 
         # get selected model
-        model = self.ui.modelComboBox.currentData
+        model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
+
+        # update text
+        modelText = model.getText()
+        if modelText is not None:
+            self.ui.modelInfoText.setText(model.getText())
+            self.ui.modelInfoText.setVisible(True)
+        else:
+            self.ui.modelInfoText.setText("")
+            self.ui.modelInfoText.setVisible(False)
+
+        # update log display 
+        self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
 
         # update advanced option check boxes
         self.updateDownloadDockerfileCheckBox(model)
@@ -456,7 +495,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if not setStep:
             self.ui.statusLabel.appendPlainText(text)
         else:
-            self.ui.stepLabel.plainText = text
+            self.ui.stepLabel.text = text
         slicer.app.processEvents()  # force update
 
     def onApplyButton(self):
@@ -467,7 +506,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             # clear text field
             self.ui.statusLabel.plainText = ''
-            self.ui.stepLabel.plainText = ''
+            self.ui.stepLabel.text = ''
 
             # setup python requirements 
             # self.logic.setupPythonRequirements() NOTE: moved to setup()
@@ -731,7 +770,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         command =  [dockerExecPath, 'pull', image_ref]
 
         # run command
-        self.log(f"Pulling image ({ ' '.join(command)})", setStep=True)
+        self.log(f"Pulling image", setStep=True)
+        logging.info(f"Pulling image ({ ' '.join(command)})")
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
         self.log("Image pulled.")
@@ -788,7 +828,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         command += [dockerDir]
 
         # run command
-        self.log(f"Build image ({' '.join(command)})", setStep=True)
+        self.log(f"Build image", setStep=True)
+        logging.info(f"Build image ({' '.join(command)})")
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
         self.log("Image build.")
@@ -822,7 +863,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             command += containerArguments
 
         # run
-        self.log(f"Run container ({' '.join(command)})", setStep=True)
+        self.log(f"Run container", setStep=True)
+        logging.info(f"Run container ({' '.join(command)})")
         proc = slicer.util.launchConsoleProcess(command)
         self.logProcessOutput(proc)
 

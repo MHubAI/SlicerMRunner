@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>432</width>
-    <height>695</height>
+    <width>363</width>
+    <height>960</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -23,6 +23,46 @@
    </item>
    <item>
     <widget class="QTableWidget" name="modelTableWidget"/>
+   </item>
+   <item>
+    <widget class="QTextEdit" name="modelInfoText">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>100</height>
+      </size>
+     </property>
+     <property name="acceptDrops">
+      <bool>false</bool>
+     </property>
+     <property name="autoFillBackground">
+      <bool>false</bool>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="sizeAdjustPolicy">
+      <enum>QAbstractScrollArea::AdjustIgnored</enum>
+     </property>
+     <property name="undoRedoEnabled">
+      <bool>false</bool>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+     <property name="overwriteMode">
+      <bool>false</bool>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="ctkCollapsibleButton" name="inputsCollapsibleButton">
@@ -129,13 +169,39 @@
      </property>
      <layout class="QFormLayout" name="formLayout_3">
       <item row="0" column="0">
+       <widget class="QLabel" name="label_8">
+        <property name="text">
+         <string>Image</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="dockerImageSelector">
+        <item>
+         <property name="text">
+          <string>nocuda</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>cuda11.4</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>cuda12.4</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="1" column="0">
        <widget class="QLabel" name="label_4">
         <property name="text">
          <string>Download Dockerfile:</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
+      <item row="1" column="1">
        <widget class="QCheckBox" name="downloadDockerfileCheckBox">
         <property name="toolTip">
          <string>Dockerfiles are pulled from our Dockerhub repository (mhubai) via docker pull. Instead, you can build the image locally on your machine by downloading the dockerfile into a temporary directory.</string>
@@ -148,43 +214,48 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_3">
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_6">
         <property name="text">
-         <string>Image threshold:</string>
+         <string>Use GPU</string>
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
-       <widget class="ctkSliderWidget" name="imageThresholdSliderWidget">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="gpuCheckBox">
         <property name="toolTip">
-         <string>Set threshold value for computing the output image. Voxels that have intensities lower than this value will set to zero.</string>
+         <string>For all models that support GPU acceleration, enable the UseGPU flag to run the model in GPU mode. This flag is set by default for supported models. When it is set, we use a Docker base image that bundles all requirements, e.g., cuda. If you are using a machine without a GPU, you can uncheck this option to use the lightweight base image instead. Note that not all models support CPU-only mode. For those models that do, the execution time is likely to be much higher when running without GPU acceleration.</string>
         </property>
-        <property name="singleStep">
-         <double>0.100000000000000</double>
-        </property>
-        <property name="minimum">
-         <double>-100.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>500.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>0.500000000000000</double>
+        <property name="text">
+         <string>(Select only if available)</string>
         </property>
        </widget>
       </item>
       <item row="3" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Docker build --no-cache</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QCheckBox" name="dockerNoCacheCheckBox">
+        <property name="toolTip">
+         <string>During execution, we always check if the image is already available on the local system. If it is not, we initiate either a Docker pull or a Docker build after downloading the Dockerfile. If you select this option, a push or build will be forced even if the image is already available locally. If the Download Dockerfile option is enabled, the image is downloaded and built locally with the --no-cache flag set.</string>
+        </property>
+        <property name="text">
+         <string>(Will rebuild or pull)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
        <widget class="QLabel" name="label_2">
         <property name="text">
          <string>Thresholded volume (OLD):</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="5" column="1">
        <widget class="qMRMLNodeComboBox" name="outputSelector">
         <property name="toolTip">
          <string>Pick the output to the algorithm.</string>
@@ -208,51 +279,60 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Image threshold:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="ctkSliderWidget" name="imageThresholdSliderWidget">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="toolTip">
+         <string>Set threshold value for computing the output image. Voxels that have intensities lower than this value will set to zero.</string>
+        </property>
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>-100.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>500.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>0.500000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
        <widget class="QPushButton" name="cmdTest1">
         <property name="text">
          <string>Test1</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="7" column="1">
        <widget class="QPushButton" name="cmdTest2">
         <property name="text">
          <string>Test2</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_6">
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_9">
         <property name="text">
-         <string>Use GPU</string>
+         <string>Display log</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QCheckBox" name="gpuCheckBox">
-        <property name="toolTip">
-         <string>For all models that support GPU acceleration, enable the UseGPU flag to run the model in GPU mode. This flag is set by default for supported models. When it is set, we use a Docker base image that bundles all requirements, e.g., cuda. If you are using a machine without a GPU, you can uncheck this option to use the lightweight base image instead. Note that not all models support CPU-only mode. For those models that do, the execution time is likely to be much higher when running without GPU acceleration.</string>
-        </property>
+      <item row="4" column="1">
+       <widget class="QCheckBox" name="displayLogCheckBox">
         <property name="text">
-         <string>(Select only if available)</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_7">
-        <property name="text">
-         <string>Docker build --no-cache</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="dockerNoCacheCheckBox">
-        <property name="toolTip">
-         <string>During execution, we always check if the image is already available on the local system. If it is not, we initiate either a Docker pull or a Docker build after downloading the Dockerfile. If you select this option, a push or build will be forced even if the image is already available locally. If the Download Dockerfile option is enabled, the image is downloaded and built locally with the --no-cache flag set.</string>
-        </property>
-        <property name="text">
-         <string>(Will rebuild or pull)</string>
+         <string/>
         </property>
        </widget>
       </item>
@@ -280,20 +360,11 @@
     </widget>
    </item>
    <item>
-    <widget class="QPlainTextEdit" name="stepLabel">
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>40</height>
-      </size>
+    <widget class="QLabel" name="stepLabel">
+     <property name="text">
+      <string></string>
      </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="horizontalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="readOnly">
+     <property name="wordWrap">
       <bool>true</bool>
      </property>
     </widget>
@@ -360,8 +431,8 @@
      <y>132</y>
     </hint>
     <hint type="destinationlabel">
-     <x>248</x>
-     <y>61</y>
+     <x>344</x>
+     <y>243</y>
     </hint>
    </hints>
   </connection>
@@ -376,8 +447,8 @@
      <y>135</y>
     </hint>
     <hint type="destinationlabel">
-     <x>220</x>
-     <y>161</y>
+     <x>352</x>
+     <y>458</y>
     </hint>
    </hints>
   </connection>
@@ -392,8 +463,8 @@
      <y>207</y>
     </hint>
     <hint type="destinationlabel">
-     <x>65</x>
-     <y>189</y>
+     <x>209</x>
+     <y>305</y>
     </hint>
    </hints>
   </connection>

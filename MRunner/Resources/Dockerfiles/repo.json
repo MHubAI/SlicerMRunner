@@ -3,10 +3,11 @@
         {
             "name": "thresholder",
             "label": "Thresholder",
+            "text": "Demo model.<br/> Generates a mask by thresholding the input image at 300 HU.",
             "dockerfile": {
                 "gpu": false,
                 "pull": false,
-                "download": "docker-dev"
+                "download": "main"
             },
             "type": "segmentation",
             "config": {},
@@ -25,6 +26,7 @@
         {
             "name": "totalsegmentator",
             "label": "TotalSegmentator Demo",
+            "text": "Demo model.<br/> Run TotalSegmentator on the input image but import a selection of cardiac substructures. If used for research purposes, following article should be cited: <a href='https://doi.org/10.48550/arXiv.2208.05868'>https://doi.org/10.48550/arXiv.2208.05868</a>.",
             "dockerfile": {
                 "gpu": true,
                 "pull": true,
@@ -43,6 +45,7 @@
         {
             "name": "totalsegmentator",
             "label": "TotalSegmentator",
+            "text": "Run TotalSegmentator on the input image. If used for research purposes, following article should be cited: <a href='https://doi.org/10.48550/arXiv.2208.05868'>https://doi.org/10.48550/arXiv.2208.05868</a>",
             "dockerfile": {
                 "gpu": true,
                 "pull": true,
@@ -60,6 +63,7 @@
         {
             "name": "platipy",
             "label": "Platipy",
+            "text": "This project consists of an algorithm to automatically segment the heart plus 17 cardiac sub-structures in typical Radiotherapy CT scans. The hybrid algorithm [1] first segments the whole heart using a deep learning model (nnUNet [2]) followed by a multi-atlas based mapping of the cardiac sub-structures [3] and finally geometric modelling of smaller cardiac structures.<br/><br/>References<br/>[1] Finnegan, RN, Chin, V, Chlap, P, et al. Open-source, fully-automated hybrid cardiac substructure segmentation: development and optimisation. Phys Eng Sci Med. 2023. doi:10.1007/s13246-023-01231-w<br/>[2] Isensee F, Jaeger PF, Kohl SAA, Petersen J, Maier-Hein KH. nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nat Methods. 2021;18(2):203-211. doi:10.1038/s41592-020-01008-z<br/>[3] Finnegan R, Dowling J, Koh E-S, et al. Feasibility of multi-atlas cardiac segmentation from thoracic planning CT in a probabilistic framework. Phys Med Biol. 2019;64(8):085006. doi:10.1088/1361-6560/ab0ea6",
             "dockerfile": {
                 "gpu": true,
                 "pull": true,

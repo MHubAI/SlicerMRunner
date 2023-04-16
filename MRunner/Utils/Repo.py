@@ -207,6 +207,15 @@ class RepositoryModel:
 
     def getLabel(self) -> str:
         return str(self.data['label'])
+    
+    def getText(self) -> Optional[str]:
+        if not "text" in self.data.keys():
+            return None
+        
+        if not len(self.data['text']) > 0:
+            return None
+
+        return str(self.data['text']) 
 
     def getType(self) -> RepositoryModelType:
         return RepositoryModelType(self.data['type'])
