@@ -101,6 +101,60 @@
                     "labels": {
                         "1": "RIGHT_VENTRICLE"
                     }
+                },
+                {
+                    "file": "A_LAD.nii.gz",
+                    "labels": {
+                        "1": "CORONARY_ARTERY_LAD"
+                    }
+                },
+                {
+                    "file": "A_Cflx.nii.gz",
+                    "labels": {
+                        "1": "CORONARY_ARTERY_CFLX"
+                    }
+                },
+                {
+                    "file": "A_Coronary_R.nii.gz",
+                    "labels": {
+                        "1": "CORONARY_ARTERY_RIGHT"
+                    }
+                },
+                {
+                    "file": "A_Pulmonary.nii.gz",
+                    "labels": { "1": { "name": "Pulmonary Artery", "color": [224,97,76] }}
+                },
+                {
+                    "file": "A_Coronary_L.nii.gz",
+                    "labels": { "1": { "name": "Left Coronary Artery", "color": [224,97,76] }}
+                },
+                {
+                    "file": "V_Venacava_S.nii.gz",
+                    "labels": { "1": { "name": "Superior Vena Cava", "color": [224,97,76] }}
+                },
+                {
+                    "file": "Valve_Mitral.nii.gz",
+                    "labels": { "1": { "name": "Mitral Valve", "color": [224,97,76] }}
+                },
+                { 
+                    "file": "Valve_Tricuspid.nii.gz",
+                    "labels": { "1": { "name": "Tricuspid Valve", "color": [224,97,76] }}
+                },
+                {
+                    "file": "Valve_Aortic.nii.gz",
+                    "labels": { "1": { "name": "Aortic Valve", "color": [224,97,76] }}
+                },
+                {
+                    "file": "Valve_Pulmonic.nii.gz",
+                    "labels": { "1": { "name": "Pulmonic Valve", "color": [224,97,76] }}
+                },
+                {
+                    "file": "CN_Sinoatrial.nii.gz",
+                    "labels": { "1": { "name": "Sinoatrial Conduction Node", "color": [224,224,224] }}
+                },
+                {
+                    "file": "CN_Atrioventricular.nii.gz",
+                    "labels": { "1": { "name": "Atrioventricular Conduction Node", "color": [224,224,224] }}
                 }
             ]            
         },
