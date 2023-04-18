@@ -110,7 +110,7 @@
             "dockerfile": {
                 "gpu": true,
                 "pull": true,
-                "download": "docker-dev"
+                "download":  "docker-dev"
             },
             "type": "segmentation",
             "config": {},
@@ -123,6 +123,26 @@
                     }
                 }                
             ]
+        },
+        {
+            "name": "casust",
+            "label": "Cardiac Sub-Structures",
+            "dockerfile": {
+                "gpu": true,
+                "pull": true,
+                "download": "docker-dev"
+            },
+            "type": "segmentation",
+            "config": {},
+            "output": {
+                "LEFT_ATRIUM": "Atrium_L.nrrd",
+                "LEFT_VENTRICLE": "Ventricle_L.nrrd",
+                "RIGHT_ATRIUM": "Atrium_R.nrrd",
+                "RIGHT_VENTRICLE": "Ventricle_R.nrrd"  ,   
+                "CORONARY_ARTERY_RIGHT": "Coronary_Atery_R.nrrd",
+                "CORONARY_ARTERY_CFLX": "Coronary_Atery_CFLX.nrrd",
+                "CORONARY_ARTERY_LAD": "Coronary_LAD.nrrd"
+            }
         }
     ]
 }
