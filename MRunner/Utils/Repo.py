@@ -9,7 +9,7 @@ Email:  leonard.nuernberg@maastrichtuniversity.nl
 -------------------------------------------------
 """
 
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 from enum import Enum
 
 import os, json
@@ -73,7 +73,7 @@ class RepositoryModelType(Enum):
 
 class CustomSegment(Segment):
 
-    def __init__(self, data: any) -> None:
+    def __init__(self, data: Any) -> None:
         self.data = data
 
     # override
@@ -104,7 +104,7 @@ class CustomSegment(Segment):
             return None
 
 class ExpectedOutputFile:
-    def __init__(self, data: any) -> None:
+    def __init__(self, data: Any) -> None:
         self.data = data
 
     def getFileName(self) -> str:
@@ -142,7 +142,7 @@ class ExpectedOutputFileLabel:
 
 
 class RepositoryModelDockerfile:
-    def __init__(self, model: 'RepositoryModel', data: any) -> None:
+    def __init__(self, model: 'RepositoryModel', data: Any) -> None:
         self.model = model
         self.data = data
 
@@ -197,7 +197,7 @@ class RepositoryModelDockerfile:
 
 class RepositoryModel:
 
-    def __init__(self, repo: Repository, data: any) -> None:
+    def __init__(self, repo: Repository, data: Any) -> None:
         self.repo = repo
         self.data = data
 
