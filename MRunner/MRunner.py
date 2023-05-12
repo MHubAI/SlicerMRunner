@@ -8,7 +8,6 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import qt
 
-from Utils import Repo
 
 #
 # MRunner
@@ -165,8 +164,9 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # install required python packages and add file-path to pythonpath (NOTE: the latter seems only required on linux?)
         self.logic.setupPythonRequirements()
-        import sys
-        sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
+        #import sys
+        #sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
+        from Utils import Repo
 
         # load repo definition and pass down to logic
         self.repo = Repo.Repository(self.resourcePath('Dockerfiles/repo.json'))
@@ -313,6 +313,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
         # get selected model
+        from Utils import Repo
         model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
 
         # update text
@@ -459,6 +460,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
 
         # get selected model
+        from Utils import Repo
         model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
 
         # update text
