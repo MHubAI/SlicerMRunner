@@ -5,7 +5,7 @@ MHub Runner is a 3D Slicer plugin that seamlessly integrates Deep Learning model
 ## Medical Hub (mhub)
 MHub is a repository for Machine Learning models for medical imaging. The goal of mhub is to make these models universally accessible by containerizing the entire model pipeline and standardizing the I/O interface.
 
-Find out more at [mhub.ai](https://mhub.ai) and check out the mhub [GitHub repository](https://github.com/AIM-Harvard/mhub).
+Find out more at [mhub.ai](https://mhub.ai) and check out the mhub [GitHub repository](https://github.com/MHubAI).
 
 ## Requirements
 We only need [Docker](https://docs.docker.com/get-docker/) 🐳 to be installed on your system. That's it.
