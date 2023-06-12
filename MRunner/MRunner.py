@@ -101,7 +101,6 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode) # -> causes GetSegmentation() in process to be None on the first apply only
         self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
-        self.ui.downloadDockerfileCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.gpuCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.dockerNoCacheCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
@@ -111,14 +110,18 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.setupPythonRequirements()
         #import sys
         #sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
-        from Utils import Repo
+        from Utils import Repo, Models
 
         # load repo definition and pass down to logic
-        self.repo = Repo.Repository(self.resourcePath('Dockerfiles/repo.json'))
-        self.logic.repo = self.repo
+        #self.repo = Repo.Repository(self.resourcePath('Dockerfiles/repo.json'))
+        #self.logic.repo = self.repo
+        self.models = Models.Repository(self.resourcePath('Dockerfiles/models.json'))
+        self.logic.models = self.models
+        #self.models = self.repo
+        #self.logic.models = self.repo
 
         # exract model names from repo definition and feed into dropdown
-        for model in self.repo.getModels():
+        for model in self.models.getModels():
             #self.ui.modelComboBox.addItem(f"{model.getLabel()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
             self.ui.modelComboBox.addItem(f"{model.getLabel()}", model)
 
@@ -258,8 +261,9 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
         # get selected model
-        from Utils import Repo
-        model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
+        from Utils import Repo, Models
+        #model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
+        model: Models.RepositoryModel = self.ui.modelComboBox.currentData
 
         # update text
         modelText = model.getText()
@@ -274,7 +278,6 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
 
         # update advanced option check boxes
-        self.updateDownloadDockerfileCheckBox(model)
         self.updateGpuCheckBox(model)
 
         # update output
@@ -287,36 +290,14 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
 
-    def updateDownloadDockerfileCheckBox(self, model):
-        """ GUI-UPDATE
-            Set the advanced option download dockerfile checkbox based on model definition.
-        """
-
-        modelCanDownload = model.getDockerfile().isDownloadableFromRepository()
-        modelCanPull = model.getDockerfile().isPullableFromRepository()
-        
-        if not modelCanDownload:
-            # model can not be downloaded -> remove the option of downloading a model
-            self.ui.downloadDockerfileCheckBox.checked = False
-            self.ui.downloadDockerfileCheckBox.enabled = False
-        elif not modelCanPull:
-            # model can be downloaded but not pulled -> enforce download 
-            self.ui.downloadDockerfileCheckBox.checked = True
-            self.ui.downloadDockerfileCheckBox.enabled = False
-        else:
-            # leave choice free to the user
-            # NOTE: case no download and no pull not catched (see self.updateGUIFromParameterNode())
-            # --> in case downlaod is disabled and pulling is not possible, the image must be provided or the plugin will fail.
-            self.ui.downloadDockerfileCheckBox.checked = (self._parameterNode.GetParameter("DownloadDockerfile") == "true")
-            self.ui.downloadDockerfileCheckBox.enabled = True
-
 
     def updateGpuCheckBox(self, model):
         """ GUI-UPDATE
             Set the advanced option useUGPU checkbox based on model definition.
         """
 
-        modelCanUseGPU = model.getDockerfile().isGpuUsable()
+        #modelCanUseGPU = model.getDockerfile().isGpuUsable()
+        modelCanUseGPU = True
 
         if not modelCanUseGPU:
             self.ui.gpuCheckBox.checked = False
@@ -400,7 +381,6 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetNodeReferenceID("InputVolume", self.ui.inputSelector.currentNodeID)
         self._parameterNode.SetNodeReferenceID("OutputVolume", self.ui.outputSelector.currentNodeID)
         self._parameterNode.SetParameter("Threshold", str(self.ui.imageThresholdSliderWidget.value))
-        self._parameterNode.SetParameter("DownloadDockerfile", "true" if self.ui.downloadDockerfileCheckBox.checked else "false")
         self._parameterNode.SetParameter("UseGPU", "true" if self.ui.gpuCheckBox.checked else "false")
         self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
 
@@ -421,7 +401,6 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
 
         # update advanced option check boxes
-        self.updateDownloadDockerfileCheckBox(model)
         self.updateGpuCheckBox(model)
 
         # update output
@@ -472,7 +451,6 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 inputVolume         = self.ui.inputSelector.currentNode(), 
                 outputSegmentation  = self.ui.outputSegmentationSelector.currentNode(),
                 imageThreshold      = self.ui.imageThresholdSliderWidget.value, 
-                downloadDockerfile  = self.ui.downloadDockerfileCheckBox.checked,
                 useGPU              = self.ui.gpuCheckBox.checked,
                 noCache             = self.ui.dockerNoCacheCheckBox.checked
             )
@@ -538,6 +516,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.logCallback = None
         self.resourcePath = None
         self.repo = None
+        self.models = None
 
 
     def setDefaultParameters(self, parameterNode):
@@ -608,10 +587,22 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
            self.log('Numpy is required. Installing...')
            slicer.util.pip_install('numpy')
 
-    def downloadRepo(self):
-        # raw-path using the docker-dev branch instead of main.
-        repo_json_url = ""
+        # install segDB from github
+        needToInstallPackage = False
+        try:
+          import segdb
+        except ModuleNotFoundError as e:
+           needToInstallPackage = True
+        if needToInstallPackage:
+           self.log('SegDB is required. Installing...')
+           slicer.util.pip_install('git+https://github.com/MHubAI/SegDB.git')
 
+    def updateSegDB(self):
+        # uninstall
+        slicer.util.pip_uninstall('segdb')
+
+        # install
+        slicer.util.pip_install('git+https://github.com/MHubAI/segdb.git')
 
     def addDockerPath(self):
         # FIXME: add /usr/local/bin where docker-credential-desktop is installed to PATH 
@@ -694,7 +685,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
 
         # search image
-        image_ref =  model.getDockerfile().getImageRef(useGPU=useGPU) # image_name:image_tag
+        image_ref =  model.getImageRef(useGPU=useGPU) # image_name:image_tag
 
         #
         return image_ref in images_lst
@@ -713,7 +704,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         assert dockerExecPath is not None, "DockerExecPath is None."
 
         #
-        image_ref = model.getDockerfile().getImageRef(useGPU=useGPU)
+        image_ref = model.getImageRef(useGPU=useGPU)
         command =  [dockerExecPath, 'pull', image_ref]
 
         # run command
@@ -724,65 +715,29 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log("Image pulled.")
 
 
-    def downloadDockerfile(self, model, useGPU=False):
-        """Downlaods the dockerfile from mhub repository to locally build image.
+    def downloadModelrepository(self, model) -> str:
         """
+        Download model repository from mhub.ai
+        """
+        return ''
 
         # get download url from repository definition
-        dockerfile_url = model.getDockerfile().getDownloadPath(useGPU)
+        repo_url = 'https://mhub.ai/...'
 
         # create temp folder 
-        dockerfile_dir = slicer.util.tempDirectory()
+        repo_dir = slicer.util.tempDirectory()
 
         # download file 
         import urllib
-        urllib.request.urlretrieve(dockerfile_url, os.path.join(dockerfile_dir, "Dockerfile"))
+        repo_path = os.path.join(repo_dir, "mhubrepo.json")
+        urllib.request.urlretrieve(repo_url, repo_path)
 
         #
-        self.log(f"Dockerfile downloaded to {dockerfile_dir}")
-        return dockerfile_dir
+        self.log(f"MHub model repository downloaded to {repo_path}")
+        return repo_path
 
 
-    def buildImage(self, model, downloadDockerfile=True, noCache=False, useGPU=False):
-        """ Build a image locally.
-            > docker build -t NAME[:TAG|@DIGEST] --build-arg USER_ID=1001 --build-arg GROUP_ID=1001 --platform linux/amd64 [--no-cache]
-        """
-
-        # download dockerfile
-        dockerDir = self.downloadDockerfile(model, useGPU=useGPU)
-
-        if not os.path.isdir(dockerDir):
-            # TODO: handle error in calling methods
-            raise FileNotFoundError(f"Cannot build image. Dockerfile for '{model.getName()} ({model.getDockerfile().getImageRef(useGPU=useGPU)})' not found at specified location '{dockerDir}'.")
-
-        # prepare docker build command
-        dockerExecPath = self.getDockerExecutable()
-        assert dockerExecPath is not None, "DockerExecPath is None."
-
-        command =  [dockerExecPath, 'build']
-        command += ['-t', model.getDockerfile().getImageRef(useGPU=useGPU)]
-        command += ['--build-arg', 'USER_ID=1001']
-        command += ['--build-arg', 'GROUP_ID=1001']
-        command += ['--platform', 'linux/amd64']
-        
-        if noCache:
-            command += ["--no-cache"]
-       
-        # TODO: for Mac with M1 add platform
-        # command += ['--platform', 'linux/amd64']
-        # TODO: for linux add local user and group id --> no longer needed in newer docker files.
-
-        command += [dockerDir]
-
-        # run command
-        self.log(f"Build image", setStep=True)
-        logging.info(f"Build image ({' '.join(command)})")
-        proc = slicer.util.launchConsoleProcess(command)
-        self.logProcessOutput(proc)
-        self.log("Image build.")
-
-
-    def runContainerSync(self, model, dir, useGPU=False, containerArguments=None):
+    def runContainerSync(self, model, dirIn, dirOut, useGPU=False, containerArguments=None):
         """ Create and run a container of the specified image.
             NOTE: This code is blocking.
         """
@@ -792,18 +747,19 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         
         #
         command  = [dockerExecPath, "run", "--rm"]
-        command += ["--volume", f"{dir}:/app/data/input_data"]
-        command += ["--volume", f"{dir}:/app/data/output_data"]
+        command += ["--volume", f"{dirIn}:/app/data/input_data"]
+        command += ["--volume", f"{dirOut}:/app/data/output_data"]
 
         if useGPU:
             command += ["--gpus", "all"]
 
         # image to create container from
-        command += [model.getDockerfile().getImageRef(useGPU=useGPU)]
+        command += [model.getImageRef(useGPU=useGPU)]
 
         # slcier entrypoint
         mhub_model_dir = model.getName().lower()
-        command += ["python3", f"/app/models/{mhub_model_dir}/scripts/slicer_run.py"]
+        #command += ["python3", f"/app/models/{mhub_model_dir}/scripts/slicer_run.py"]
+        command += ["python3", "-m", "mhubio.run", "--config", f"/app/models/{mhub_model_dir}/config/slicer.yml"]
 
         # commands
         if isinstance(containerArguments, list) and len(containerArguments) > 0:
@@ -816,7 +772,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.logProcessOutput(proc)
 
 
-    def displaySegmentation(self, outputSegmentation, dir, model):
+    def displaySegmentation(self, outputSegmentation, dirOut, model):
+        from segdb.classes.Segment import Segment
 
         # log
         self.log(f"Import segmentations", setStep=True)
@@ -824,36 +781,41 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         # clear output segmentation
         outputSegmentation.GetSegmentation().RemoveAllSegments()
 
-        # iterate all output files from the repo
-        ofs = model.getOutputFiles()
-        for of in ofs:
-            fileName = of.getFileName()
-            ofls = of.getLabels()
+        # load segmentation file        
+        segdef_path = os.path.join(dirOut, "segdef.json")
+        assert os.path.isfile(segdef_path)
+        with open(segdef_path, 'r') as f:
+            segdef = json.load(f)
 
-            if len(ofls) == 1:
-                ofl = ofls[0]
+        # iterate segdef
+        for file_segdef in segdef:
+            file_name = file_segdef["file"]
+            file_labels = [{'labelID': k, 'segmentID': v} for k, v in file_segdef["labels"].items()]
 
-                # import this file's single label
-                segment = ofl.getSegment()
+            if len(file_labels) == 1:
+                file_label = file_labels[0]
+                labelID = file_label['labelID']
+                segmentID = file_label['segmentID']
+
+                segment = Segment(segmentID)
                 segmentName = segment.getName()
                 segmentColor = segment.getColor()
                 segmentRGB = segmentColor.getComponentsAsFloat() if segmentColor is not None else [0, 0, 0]
-                labelValue = ofl.getID()
 
-                self.log(f"Importing {segmentName} (label: {labelValue}, file: {fileName})")
+                # import this file's single label
+                self.log(f"Importing {segmentName} (label: {labelID}, file: {file_name})")
 
                 #
-                segmentPath = os.path.join(dir, fileName)
+                segmentPath = os.path.join(dirOut, file_name)
                 assert os.path.isfile(segmentPath), f"Segment file not found at {segmentPath}."
 
                 # create a label volume node and configure it
-                segmentName = segment.getName()
                 labelmapVolumeNode = slicer.util.loadLabelVolume(segmentPath, {"name": segmentName})
 
                 # add segment
-                segmentId = outputSegmentation.GetSegmentation().AddEmptySegment(segmentName, segmentName, segmentRGB)
+                segment_osid = outputSegmentation.GetSegmentation().AddEmptySegment(segmentName, segmentName, segmentRGB)
                 updatedSegmentIds = vtk.vtkStringArray()
-                updatedSegmentIds.InsertNextValue(segmentId)
+                updatedSegmentIds.InsertNextValue(segment_osid)
                 
                 # add the label volume node to the segmentation node and remove it
                 slicer.modules.segmentations.logic().ImportLabelmapToSegmentationNode(labelmapVolumeNode, outputSegmentation, updatedSegmentIds)
@@ -861,9 +823,9 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 slicer.mrmlScene.RemoveNode(labelmapVolumeNode)
 
             else:
-
-                # setup
-                maxLabelValue = len(ofls)
+                
+                 # setup
+                maxLabelValue = len(file_labels)
                 opacity = 1
 
                 # create color table for this segmentation task
@@ -873,30 +835,35 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 colorTableNode.SetName(f"MHub [{model.getLabel()}]")
 
                 # iterate all file labels
-                for ofl in ofls:
-                    segment = ofl.getSegment()
+                for file_label in file_labels:
+
+                    labelID = file_label['labelID']
+                    segmentID = file_label['segmentID']
+
+                    segment = Segment(segmentID)
                     segmentName = segment.getName()
                     segmentColor = segment.getColor()
                     segmentRGB = segmentColor.getComponentsAsFloat() if segmentColor is not None else [0, 0, 0]
-                    labelValue = ofl.getID()
+                    
+                    ##
 
-                    colorTableNode.SetColor(labelValue, segmentRGB[0], segmentRGB[1], segmentRGB[2], opacity)
-                    colorTableNode.SetColorName(labelValue, segmentName)
+                    colorTableNode.SetColor(labelID, segmentRGB[0], segmentRGB[1], segmentRGB[2], opacity)
+                    colorTableNode.SetColorName(labelID, segmentName)
                 slicer.mrmlScene.AddNode(colorTableNode)
 
                 # link color table and load the segmentation file 
-                self.log(f"Importing {fileName} (# labels: {maxLabelValue})")
+                self.log(f"Importing {file_name} (# labels: {maxLabelValue})")
                 outputSegmentation.SetLabelmapConversionColorTableNodeID(colorTableNode.GetID())
                 outputSegmentation.AddDefaultStorageNode()
                 storageNode = outputSegmentation.GetStorageNode()
-                storageNode.SetFileName(os.path.join(dir, fileName))
+                storageNode.SetFileName(os.path.join(dirOut, file_name))
                 storageNode.ReadData(outputSegmentation)
 
                 # remove the color table
                 slicer.mrmlScene.RemoveNode(colorTableNode)
 
 
-    def process(self, model, inputVolume, outputSegmentation, imageThreshold, downloadDockerfile=True, useGPU=False, noCache=False):
+    def process(self, model, inputVolume, outputSegmentation, imageThreshold, useGPU=False, noCache=False):
         """
         Run the processing algorithm.
         Can be used without GUI widget.
@@ -915,11 +882,12 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log('Processing started')
 
         # create a temp directory icer
-        tempDir = slicer.util.tempDirectory()
+        tmpDirIn = slicer.util.tempDirectory()
+        tmpDirOut = slicer.util.tempDirectory()
 
         # input file
         # TODO: rename to input.nrrd (requires update in aimi_alpha)
-        inputFile = os.path.join(tempDir, "image.nrrd")
+        inputFile = os.path.join(tmpDirIn, "image.nrrd")
 
         # write selected input volume to temp directory
         volumeStorageNode = slicer.mrmlScene.CreateNodeByClass("vtkMRMLVolumeArchetypeStorageNode")
@@ -931,22 +899,15 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         # image to run
         #image_tag = 'aimi/totalsegmentator:latest' # 'aimi/thresholder' # 'leo/thresholder'
 
-        # check / build image
+        # check / pull image
         if not self.checkImage(model, useGPU=useGPU) or noCache:
-
-            # download dockerfile and build image locally if download opion is enabled
-            if downloadDockerfile:
-                self.buildImage(model, downloadDockerfile=downloadDockerfile, noCache=noCache, useGPU=useGPU)
-            
-            # if not, just pull the image from dockerhub
-            else:
-                self.pullImage(model, useGPU=useGPU)
+            self.pullImage(model, useGPU=useGPU)
 
         # run container
-        self.runContainerSync(model, tempDir, useGPU=useGPU)
+        self.runContainerSync(model, tmpDirIn, tmpDirOut, useGPU=useGPU)
 
         # display segmentation
-        self.displaySegmentation(outputSegmentation, tempDir, model)
+        self.displaySegmentation(outputSegmentation, tmpDirOut, model)
 
         # Set source volume - required for DICOM Segmentation export
         outputSegmentation.SetNodeReferenceID(outputSegmentation.GetReferenceImageGeometryReferenceRole(), inputVolume.GetID())

@@ -1,0 +1,497 @@
+{
+    "models": {
+        "thresholder": {
+            "id": "c56f7c41-8f91-4a8d-bef8-b5a942ab95f0",
+            "name": "thresholder",
+            "label": "Thresholder",
+            "version": "1.0",
+            "description": "dev test th=300 tool",
+            "licence": "",
+            "repository": "",
+            "references": [],
+            "contributors": [],
+            "images": [],
+            "inputs": [
+                {
+                    "name": "input",
+                    "type": "image",
+                    "description": "Input image",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": "WHOLEBODY, CHEST, BREAST, ABDOMEN, PELVIS, HEAD, NECK"
+                    }
+                }
+            ],
+            "segmentations": [
+                "HEART"
+            ]
+        },
+        "totalsegmentator": {
+            "id": "c8213157-56c4-463c-9576-af5b9124b70b",
+            "name": "totalsegmentator",
+            "label": "TotalSegmentator",
+            "version": "1.0",
+            "description": "TotalSegmentator is an AI-based tool for robust segmentation of 104 important anatomical structures in CT images.",
+            "licence": "Apache 2.0",
+            "repository": "https://github.com/wasserth/TotalSegmentator",
+            "references": [
+                "Wasserthal J., Meyer M., Breit H., Cyriac J., Yang S., Segeroth M. TotalSegmentator: robust segmentation of 104 anatomical structures in CT images, 2022. URL: https://arxiv.org/abs/2208.05868. arXiv: 2208.05868"
+            ],
+            "contributors": [
+                "Leonard Nuernberg"
+            ],
+            "images": [
+                "res/images/totalsegmentator/img1.png",
+                "res/images/totalsegmentator/img2.png",
+                "res/images/totalsegmentator/img3.png",
+                "res/images/totalsegmentator/img4.png",
+                "res/images/totalsegmentator/img5.png"
+            ],
+            "stats": {
+                "stars": 469,
+                "downloads": 42
+            },
+            "inputs": [
+                {
+                    "name": "input",
+                    "type": "image",
+                    "description": "Input image",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": "WHOLEBODY, CHEST, BREAST, ABDOMEN, PELVIS, HEAD, NECK"
+                    }
+                }
+            ],
+            "segmentations": [
+                "AORTA",
+                "BRAIN",
+                "COLON",
+                "DUODENUM",
+                "ESOPHAGUS",
+                "FACE",
+                "GALLBLADDER",
+                "INFERIOR_VENA_CAVA",
+                "LEFT_ADRENAL_GLAND",
+                "LEFT_ATRIUM",
+                "LEFT_AUTOCHTHONOUS_BACK_MUSCLE",
+                "LEFT_CLAVICLE",
+                "LEFT_FEMUR",
+                "LEFT_GLUTEUS_MAXIMUS",
+                "LEFT_GLUTEUS_MEDIUS",
+                "LEFT_GLUTEUS_MINIMUS",
+                "LEFT_HIP",
+                "LEFT_HUMERUS",
+                "LEFT_ILIAC_ARTERY",
+                "LEFT_ILIAC_VEIN",
+                "LEFT_ILIOPSOAS",
+                "LEFT_KIDNEY",
+                "LEFT_LOWER_LUNG_LOBE",
+                "LEFT_RIB",
+                "LEFT_SCAPULA",
+                "LEFT_UPPER_LUNG_LOBE",
+                "LEFT_VENTRICLE",
+                "LIVER",
+                "MYOCARDIUM",
+                "PANCREAS",
+                "PORTAL_AND_SPLENIC_VEIN",
+                "PULMONARY_ARTERY",
+                "RIGHT_ADRENAL_GLAND",
+                "RIGHT_ATRIUM",
+                "RIGHT_AUTOCHTHONOUS_BACK_MUSCLE",
+                "RIGHT_CLAVICLE",
+                "RIGHT_FEMUR",
+                "RIGHT_GLUTEUS_MAXIMUS",
+                "RIGHT_GLUTEUS_MEDIUS",
+                "RIGHT_GLUTEUS_MINIMUS",
+                "RIGHT_HIP",
+                "RIGHT_HUMERUS",
+                "RIGHT_ILIAC_ARTERY",
+                "RIGHT_ILIAC_VEIN",
+                "RIGHT_ILIOPSOAS",
+                "RIGHT_KIDNEY",
+                "RIGHT_LOWER_LUNG_LOBE",
+                "RIGHT_MIDDLE_LUNG_LOBE",
+                "RIGHT_RIB",
+                "RIGHT_SCAPULA",
+                "RIGHT_UPPER_LUNG_LOBE",
+                "RIGHT_VENTRICLE",
+                "SACRUM",
+                "SMALL_INTESTINE",
+                "SPLEEN",
+                "STOMACH",
+                "TRACHEA",
+                "URINARY_BLADDER",
+                "VERTEBRAE"
+            ],
+            "configurables": [],
+            "flows": {
+                "default": {
+                    "script": "scripts/run.py",
+                    "config": "config/config.yml"
+                },
+                "slicer": {
+                    "script": "scripts/slicer_run.py",
+                    "config": "config/slicer_config.yml"
+                }
+            }
+        },
+        "platipy": {
+            "id": "15bbdf4d-cd53-4d93-8a0e-8a614ca4ad50",
+            "name": "platipy",
+            "label": "Platipy",
+            "version": "1.0",
+            "description": "PlatiPy is a library of tools for image processing and analysis designed specifically for medical imaging. This specific model focuses on the hybrid segmentation of cardiac substructures.",
+            "licence": "Apache 2.0",
+            "repository": "https://github.com/pyplati/platipy",
+            "references": [
+                "Finnegan, RN, Chin, V, Chlap, P, et al. Open-source, fully-automated hybrid cardiac substructure segmentation: development and optimisation. Phys Eng Sci Med. 2023"
+            ],
+            "contributors": [
+                "Leonard Nuernberg"
+            ],
+            "images": [
+                "res/images/platipy/img1.png",
+                "res/images/platipy/img2.png",
+                "res/images/platipy/img3.png",
+                "res/images/platipy/img4.png",
+                "res/images/platipy/img5.png"
+            ],
+            "stats": {
+                "stars": 50,
+                "downloads": 42
+            },
+            "inputs": [
+                {
+                    "name": "input1",
+                    "type": "image",
+                    "description": "Single DICOM CT Series of the patient",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": "CHEST"
+                    }
+                }
+            ],
+            "segmentations": [
+                "HEART",
+                "AORTA",
+                "LEFT_ATRIUM",
+                "LEFT_VENTRICLE",
+                "RIGHT_ATRIUM",
+                "RIGHT_VENTRICLE",
+                "CORONARY_ARTERY_LAD",
+                "CORONARY_ARTERY_CFLX",
+                "CORONARY_ARTERY_RIGHT"
+            ],
+            "configurables": [],
+            "flows": {
+                "default": {
+                    "script": "scripts/run.py",
+                    "config": "config/config.yml"
+                },
+                "slicer": {
+                    "script": "scripts/slicer_run.py",
+                    "config": "config/slicer_config.yml"
+                }
+            }
+        },
+        "casust": {
+            "id": "1c12f013-7ae8-4f88-bc37-89d8ad3d279e",
+            "name": "casust",
+            "label": "CaSuSt",
+            "version": "1.0",
+            "description": "CaSuSt is a pipeline for the segmentation of the heart and cardiac substructures from non-contrast CT scans.",
+            "licence": "MPL-2.0",
+            "repository": "https://github.com/LennyN95/CaSuSt",
+            "references": [
+                "Nuernberg, L, Bontempi, D, De Ruysscher, D, et al. Deep learning segmentation of heart substructures in radiotherapy treatment planning. Physica Medica: European journal of medical physics, 2022"
+            ],
+            "contributors": [
+                "Leonard Nuernberg"
+            ],
+            "images": [
+                "res/images/casust/img1.png",
+                "res/images/casust/img2.png",
+                "res/images/casust/img3.png",
+                "res/images/casust/img4.png",
+                "res/images/casust/img5.png"
+            ],
+            "stats": {
+                "stars": 5,
+                "downloads": 42
+            },
+            "inputs": [
+                {
+                    "name": "input1",
+                    "type": "image",
+                    "description": "Single DICOM CT Series of the patient",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": "CHEST"
+                    }
+                }
+            ],
+            "segmentations": [
+                "HEART",
+                "LEFT_ATRIUM",
+                "LEFT_VENTRICLE",
+                "RIGHT_ATRIUM",
+                "RIGHT_VENTRICLE",
+                "CORONARY_ARTERY_LAD",
+                "CORONARY_ARTERY_CFLX",
+                "CORONARY_ARTERY_RIGHT"
+            ],
+            "configurables": [],
+            "flows": {
+                "default": {
+                    "script": "scripts/run.py",
+                    "config": "config/config.yml"
+                },
+                "slicer": {
+                    "script": "scripts/slicer_run.py",
+                    "config": "config/slicer_config.yml"
+                }
+            }
+        },
+        "lungmask": {
+            "id": "befb0872-372e-4a93-9371-9efb4ce812b0",
+            "name": "lungmask",
+            "label": "LungMask",
+            "version": "1.0",
+            "description": "LungMask is an AI-based pipeline for the automated lung segmentation in CT (with and without presence of severe pathologies).",
+            "licence": "Apache 2.0",
+            "repository": "https://github.com/JoHof/lungmask",
+            "references": [
+                "Hofmanninger, J, Prayer, F, Pan, J, et Al. Automatic lung segmentation in routine imaging is primarily a data diversity problem, not a methodology problem. European Radiology Experimental, 2020"
+            ],
+            "contributors": [
+                "Dennis Bontempi"
+            ],
+            "images": [
+                "res/images/lungmask/img1.png",
+                "res/images/lungmask/img2.png",
+                "res/images/lungmask/img3.png",
+                "res/images/lungmask/img4.png",
+                "res/images/lungmask/img5.png"
+            ],
+            "stats": {
+                "stars": 504,
+                "downloads": 42
+            },
+            "inputs": [
+                {
+                    "name": "input1",
+                    "type": "image",
+                    "description": "Single DICOM CT Series of the patient",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": "CHEST"
+                    }
+                }
+            ],
+            "segmentations": [
+                "LEFT_LOWER_LUNG_LOBE",
+                "RIGHT_LOWER_LUNG_LOBE",
+                "RIGHT_MIDDLE_LUNG_LOBE",
+                "LEFT_UPPER_LUNG_LOBE",
+                "RIGHT_UPPER_LUNG_LOBE",
+                "LEFT_LUNG",
+                "RIGHT_LUNG"
+            ],
+            "configurables": [],
+            "flows": {
+                "default": {
+                    "script": "scripts/run.py",
+                    "config": "config/config.yml"
+                },
+                "slicer": {
+                    "script": "scripts/slicer_run.py",
+                    "config": "config/slicer_config.yml"
+                }
+            }
+        },
+        "nnunet_liver": {
+            "id": "db94369c-7051-4aa1-be86-896f272069a5",
+            "name": "nnunet_liver",
+            "label": "nnU-Net (liver)",
+            "version": "1.0",
+            "description": "nnU-Net is collection of models pre-trained for various biomedical image tasks. This specific model focuses on liver and liver cancer segmentation.",
+            "licence": "MPL-2.0",
+            "repository": "https://github.com/MIC-DKFZ/nnUNet",
+            "references": [
+                "Isensee, F, Jaeger, PF, Kohl, SA, et Al. nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature Methods, 2021"
+            ],
+            "contributors": [
+                "Leonard Nuernberg"
+            ],
+            "images": [
+                "res/images/nnunet_liver/img1.png",
+                "res/images/nnunet_liver/img2.png",
+                "res/images/nnunet_liver/img3.png",
+                "res/images/nnunet_liver/img4.png",
+                "res/images/nnunet_liver/img5.png"
+            ],
+            "stats": {
+                "stars": 3600,
+                "downloads": 42
+            },
+            "inputs": [
+                {
+                    "name": "input1",
+                    "type": "image",
+                    "description": "Single DICOM CT Series of the patient",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": [
+                            "CHEST",
+                            "ABDOMEN"
+                        ]
+                    }
+                }
+            ],
+            "segmentations": [
+                "LIVER",
+                "LIVER_CANCER"
+            ],
+            "configurables": [],
+            "flows": {
+                "default": {
+                    "script": "scripts/run.py",
+                    "config": "config/config.yml"
+                },
+                "slicer": {
+                    "script": "scripts/slicer_run.py",
+                    "config": "config/slicer_config.yml"
+                }
+            }
+        },
+        "nnunet_segthor": {
+            "id": "fc595e5a-ce40-4cb3-8077-e94e1384f8cf",
+            "name": "nnunet_segthor",
+            "label": "nnU-Net (thoracic OAR)",
+            "version": "1.0",
+            "description": "nnU-Net is collection of models pre-trained for various biomedical image tasks. This specific model focuses on thoracic OAR segmentation.",
+            "licence": "MPL-2.0",
+            "repository": "https://github.com/MIC-DKFZ/nnUNet",
+            "references": [
+                "Isensee, F, Jaeger, PF, Kohl, SA, et Al. nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature Methods, 2021"
+            ],
+            "contributors": [
+                "Dennis Bontempi"
+            ],
+            "images": [
+                "res/images/nnunet_segthor/img1.png",
+                "res/images/nnunet_segthor/img2.png",
+                "res/images/nnunet_segthor/img3.png",
+                "res/images/nnunet_segthor/img4.png",
+                "res/images/nnunet_segthor/img5.png"
+            ],
+            "stats": {
+                "stars": 3600,
+                "downloads": 42
+            },
+            "inputs": [
+                {
+                    "name": "input1",
+                    "type": "image",
+                    "description": "Single DICOM CT Series of the patient",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": [
+                            "CHEST"
+                        ]
+                    }
+                }
+            ],
+            "segmentations": [
+                "AORTA",
+                "HEART",
+                "TRACHEA",
+                "ESOPHAGUS"
+            ],
+            "configurables": [],
+            "flows": {
+                "default": {
+                    "script": "scripts/run.py",
+                    "config": "config/config.yml"
+                },
+                "slicer": {
+                    "script": "scripts/slicer_run.py",
+                    "config": "config/slicer_config.yml"
+                }
+            }
+        },
+        "rtsunet_lunglobes": {
+            "id": "205cb9c2-c71b-4edc-9d90-d916f12eea04",
+            "name": "rtsunet_lunglobes",
+            "label": "Pulmonary Lobes <br/> RTSU-Net",
+            "version": "1.0",
+            "description": "RTSU-Net is an AI-based pipeline for the automated pulmonary lobes segmentation in CT (with and without presence of severe pathologies).",
+            "license": "Apache 2.0",
+            "repository": "https://github.com/DIAGNijmegen/bodyct-pulmonary-lobe-segmentation",
+            "references": [
+                "W. Xie, C. Jacobs, J. -P. Charbonnier and B. van Ginneken, Relational Modeling for Robust and Efficient Pulmonary Lobe Segmentation in CT Scans. IEEE Transactions on Medical Imaging, 2020"
+            ],
+            "contributors": [
+                "Dennis Bontempi, Sil van de Leemput"
+            ],
+            "images": [
+                "res/images/rtsunet_lung_lobes/img1.png",
+                "res/images/rtsunet_lung_lobes/img2.png",
+                "res/images/rtsunet_lung_lobes/img3.png",
+                "res/images/rtsunet_lung_lobes/img4.png",
+                "res/images/rtsunet_lung_lobes/img5.png"
+            ],
+            "stats": {
+                "stars": 1,
+                "downloads": 1
+            },
+            "inputs": [
+                {
+                    "name": "input1",
+                    "type": "image",
+                    "description": "Single DICOM CT Series of the patient",
+                    "required": true,
+                    "format": "dicom",
+                    "attributes": {
+                        "Modality": "CT",
+                        "BodyPartExamined": [
+                            "CHEST"
+                        ]
+                    }
+                }
+            ],
+            "segmentations": [
+                "LEFT_LOWER_LUNG_LOBE",
+                "RIGHT_LOWER_LUNG_LOBE",
+                "RIGHT_MIDDLE_LUNG_LOBE",
+                "LEFT_UPPER_LUNG_LOBE",
+                "RIGHT_UPPER_LUNG_LOBE"
+            ],
+            "configurables": [],
+            "flows": {
+                "default": {
+                    "script": "scripts/run.py",
+                    "config": "config/config.yml"
+                },
+                "slicer": {
+                    "script": "scripts/slicer_run.py",
+                    "config": "config/slicer_config.yml"
+                }
+            }
+        }
+    }
+}

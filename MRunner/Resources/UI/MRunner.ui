@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>363</width>
-    <height>960</height>
+    <height>859</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -194,26 +194,6 @@
         </item>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>Download Dockerfile:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QCheckBox" name="downloadDockerfileCheckBox">
-        <property name="toolTip">
-         <string>Dockerfiles are pulled from our Dockerhub repository (mhubai) via docker pull. Instead, you can build the image locally on your machine by downloading the dockerfile into a temporary directory.</string>
-        </property>
-        <property name="text">
-         <string>(Instead of pulling)</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_6">
         <property name="text">
@@ -245,6 +225,20 @@
         </property>
         <property name="text">
          <string>(Will rebuild or pull)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>Display log</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QCheckBox" name="displayLogCheckBox">
+        <property name="text">
+         <string/>
         </property>
        </widget>
       </item>
@@ -322,17 +316,17 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_9">
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_4">
         <property name="text">
-         <string>Display log</string>
+         <string>Repository</string>
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
-       <widget class="QCheckBox" name="displayLogCheckBox">
+      <item row="1" column="1">
+       <widget class="QPushButton" name="pushButton">
         <property name="text">
-         <string/>
+         <string>Update Repo</string>
         </property>
        </widget>
       </item>
@@ -362,7 +356,7 @@
    <item>
     <widget class="QLabel" name="stepLabel">
      <property name="text">
-      <string></string>
+      <string/>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
