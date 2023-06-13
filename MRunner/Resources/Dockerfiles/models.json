@@ -132,10 +132,6 @@
                 "default": {
                     "script": "scripts/run.py",
                     "config": "config/config.yml"
-                },
-                "slicer": {
-                    "script": "scripts/slicer_run.py",
-                    "config": "config/slicer_config.yml"
                 }
             }
         },
@@ -312,10 +308,6 @@
                 "default": {
                     "script": "scripts/run.py",
                     "config": "config/config.yml"
-                },
-                "slicer": {
-                    "script": "scripts/slicer_run.py",
-                    "config": "config/slicer_config.yml"
                 }
             }
         },
@@ -369,10 +361,6 @@
                 "default": {
                     "script": "scripts/run.py",
                     "config": "config/config.yml"
-                },
-                "slicer": {
-                    "script": "scripts/slicer_run.py",
-                    "config": "config/slicer_config.yml"
                 }
             }
         },
@@ -427,10 +415,6 @@
                 "default": {
                     "script": "scripts/run.py",
                     "config": "config/config.yml"
-                },
-                "slicer": {
-                    "script": "scripts/slicer_run.py",
-                    "config": "config/slicer_config.yml"
                 }
             }
         },
@@ -446,7 +430,7 @@
                 "W. Xie, C. Jacobs, J. -P. Charbonnier and B. van Ginneken, Relational Modeling for Robust and Efficient Pulmonary Lobe Segmentation in CT Scans. IEEE Transactions on Medical Imaging, 2020"
             ],
             "contributors": [
-                "Dennis Bontempi, Sil van de Leemput"
+                "Sil van de Leemput, Dennis Bontempi, Leonard Nuernberg"
             ],
             "images": [
                 "res/images/rtsunet_lung_lobes/img1.png",
@@ -486,10 +470,6 @@
                 "default": {
                     "script": "scripts/run.py",
                     "config": "config/config.yml"
-                },
-                "slicer": {
-                    "script": "scripts/slicer_run.py",
-                    "config": "config/slicer_config.yml"
                 }
             }
         }

@@ -31,6 +31,12 @@ class Repository:
         if self.models is None or refresh:
             self.models = []
             for model_name, model_data in self.data['models'].items():
+
+                # check if model has a slicer flow
+                if not ('flows' in model_data and 'slicer' in model_data['flows']):
+                    continue
+
+                # add model
                 self.models.append(RepositoryModel(repo=self, data=model_data))
         return self.models
 
