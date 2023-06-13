@@ -108,23 +108,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # install required python packages and add file-path to pythonpath (NOTE: the latter seems only required on linux?)
         self.logic.setupPythonRequirements()
-        #import sys
-        #sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
-        #from Utils import Repo, Models
-
-        # load repo definition and pass down to logic
-        #self.repo = Repo.Repository(self.resourcePath('Dockerfiles/repo.json'))
-        #self.logic.repo = self.repo
-        #self.models = Models.Repository(self.resourcePath('Dockerfiles/models.json'))
-        #self.logic.models = self.models
-        #self.models = self.repo
-        #self.logic.models = self.repo
-
-        # exract model names from repo definition and feed into dropdown
-        #for model in self.models.getModels():
-            #self.ui.modelComboBox.addItem(f"{model.getLabel()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
-        #    self.ui.modelComboBox.addItem(f"{model.getLabel()}", model)
-
+      
         # load model repo and display
         self.onUpdateRepoButtonClick()
 
@@ -265,8 +249,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
         # get selected model
-        from Utils import Repo, Models
-        #model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
+        from Utils import Models
         model: Models.RepositoryModel = self.ui.modelComboBox.currentData
 
         if model:
@@ -390,8 +373,8 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
 
         # get selected model
-        from Utils import Repo
-        model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
+        from Utils import Models
+        model: Models.RepositoryModel = self.ui.modelComboBox.currentData
 
         # update text
         if model:
@@ -461,8 +444,11 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 noCache             = self.ui.dockerNoCacheCheckBox.checked
             )
 
+            # reset output segmentation selection
+            self.ui.outputSegmentationSelector.setCurrentNode(None)
+
     def onUpdateRepoButtonClick(self):
-        from Utils import Repo, Models
+        from Utils import Models
 
         # update repo
         if not self.logic.downloadModelrepository():

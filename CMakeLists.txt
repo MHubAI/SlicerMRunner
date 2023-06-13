@@ -4,7 +4,7 @@ project(SlicerMHubRunner)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/SlicerMHubRunner")
+set(EXTENSION_HOMEPAGE "https://mhub.ai/")
 set(EXTENSION_CATEGORY "Segmentation")
 set(EXTENSION_CONTRIBUTORS "Leonard Nürnberg (AIM, MGB, UM)")
 set(EXTENSION_DESCRIPTION "Run models from MHub.ai directly in 3D Slicer.")

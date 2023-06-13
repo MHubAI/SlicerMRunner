@@ -13,7 +13,7 @@ from typing import List, Optional, Union, Any
 from enum import Enum
 
 import os, json
-from .SegDB import Segment, Color
+from segdb.classes import Segment, Color
 
 class Repository:
 
