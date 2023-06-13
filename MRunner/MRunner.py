@@ -110,20 +110,23 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.setupPythonRequirements()
         #import sys
         #sys.path.insert(0, os.path.join(os.getcwd(), 'MRunner'))
-        from Utils import Repo, Models
+        #from Utils import Repo, Models
 
         # load repo definition and pass down to logic
         #self.repo = Repo.Repository(self.resourcePath('Dockerfiles/repo.json'))
         #self.logic.repo = self.repo
-        self.models = Models.Repository(self.resourcePath('Dockerfiles/models.json'))
-        self.logic.models = self.models
+        #self.models = Models.Repository(self.resourcePath('Dockerfiles/models.json'))
+        #self.logic.models = self.models
         #self.models = self.repo
         #self.logic.models = self.repo
 
         # exract model names from repo definition and feed into dropdown
-        for model in self.models.getModels():
+        #for model in self.models.getModels():
             #self.ui.modelComboBox.addItem(f"{model.getLabel()} ({model.getDockerfile().REPOSITORY}:{model.getDockerfile().getImageName()})", model)
-            self.ui.modelComboBox.addItem(f"{model.getLabel()}", model)
+        #    self.ui.modelComboBox.addItem(f"{model.getLabel()}", model)
+
+        # load model repo and display
+        self.onUpdateRepoButtonClick()
 
         # test table view
         # https://stackoverflow.com/questions/12009134/adding-widgets-to-qtablewidget-pyqt
@@ -149,6 +152,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.advancedCollapsibleButton.collapsed = True
         self.ui.cmdTest1.connect('clicked(bool)', self.onTest1ButtonClick)
         self.ui.cmdTest2.connect('clicked(bool)', self.onTest2ButtonClick)
+        self.ui.cmdUpdateRepo.connect('clicked(bool)', self.onUpdateRepoButtonClick)
 
         # Image selector
         self.ui.label_8.setVisible(False)
@@ -265,27 +269,28 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
         model: Models.RepositoryModel = self.ui.modelComboBox.currentData
 
-        # update text
-        modelText = model.getText()
-        if modelText is not None:
-            self.ui.modelInfoText.setText(model.getText())
-            self.ui.modelInfoText.setVisible(True)
-        else:
-            self.ui.modelInfoText.setText("")
-            self.ui.modelInfoText.setVisible(False)
+        if model:
+            # update text
+            modelText = model.getText()
+            if modelText is not None:
+                self.ui.modelInfoText.setText(model.getText())
+                self.ui.modelInfoText.setVisible(True)
+            else:
+                self.ui.modelInfoText.setText("")
+                self.ui.modelInfoText.setVisible(False)
 
-        # update log display 
-        self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
+            # update log display 
+            self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
 
-        # update advanced option check boxes
-        self.updateGpuCheckBox(model)
+            # update advanced option check boxes
+            self.updateGpuCheckBox(model)
 
-        # update output
-        self.updateOutputSegmentationSelectorBasename(model)
+            # update output
+            self.updateOutputSegmentationSelectorBasename(model)
 
-        # update Apply button enabled state
-        self.updateApplyButtonText(model)
-        self.updateApplyButtonEnabled()
+            # update Apply button enabled state
+            self.updateApplyButtonText(model)
+            self.updateApplyButtonEnabled()
 
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
@@ -389,26 +394,27 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         model: Repo.RepositoryModel = self.ui.modelComboBox.currentData
 
         # update text
-        modelText = model.getText()
-        if modelText is not None:
-            self.ui.modelInfoText.setText(model.getText())
-            self.ui.modelInfoText.setVisible(True)
-        else:
-            self.ui.modelInfoText.setText("")
-            self.ui.modelInfoText.setVisible(False)
+        if model:
+            modelText = model.getText()
+            if modelText is not None:
+                self.ui.modelInfoText.setText(model.getText())
+                self.ui.modelInfoText.setVisible(True)
+            else:
+                self.ui.modelInfoText.setText("")
+                self.ui.modelInfoText.setVisible(False)
 
-        # update log display 
-        self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
+            # update log display 
+            self.ui.statusLabel.setVisible(self.ui.displayLogCheckBox.checked)
 
-        # update advanced option check boxes
-        self.updateGpuCheckBox(model)
+            # update advanced option check boxes
+            self.updateGpuCheckBox(model)
 
-        # update output
-        self.updateOutputSegmentationSelectorBasename(model)
+            # update output
+            self.updateOutputSegmentationSelectorBasename(model)
 
-        # update Apply button enabled state
-        self.updateApplyButtonText(model)
-        self.updateApplyButtonEnabled()
+            # update Apply button enabled state
+            self.updateApplyButtonText(model)
+            self.updateApplyButtonEnabled()
 
         # batch modification done
         self._updatingParameterNodeFromGUI = False
@@ -455,6 +461,23 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 noCache             = self.ui.dockerNoCacheCheckBox.checked
             )
 
+    def onUpdateRepoButtonClick(self):
+        from Utils import Repo, Models
+
+        # update repo
+        if not self.logic.downloadModelrepository():
+            return
+
+        # load repo definition and pass down to logic
+        self.models = Models.Repository(self.resourcePath('Dockerfiles/models.json'))
+        self.logic.models = self.models
+
+        # clean
+        self.ui.modelComboBox.clear()
+
+        # exract model names from repo definition and feed into dropdown
+        for model in self.models.getModels():
+            self.ui.modelComboBox.addItem(f"{model.getLabel()}", model)
 
     def onTest1ButtonClick(self):
         self.addLog("-- Test 1 (Segmentation names) ------------")
@@ -715,27 +738,29 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.log("Image pulled.")
 
 
-    def downloadModelrepository(self, model) -> str:
+    def downloadModelrepository(self) -> bool:
         """
         Download model repository from mhub.ai
         """
-        return ''
 
         # get download url from repository definition
-        repo_url = 'https://mhub.ai/...'
+        repo_url = 'https://mhub.ai/api/slicer.php'
 
         # create temp folder 
-        repo_dir = slicer.util.tempDirectory()
+        models_repo_file = self.resourcePath('Dockerfiles/models.json')
 
         # download file 
-        import urllib
-        repo_path = os.path.join(repo_dir, "mhubrepo.json")
-        urllib.request.urlretrieve(repo_url, repo_path)
+        try:
+            import urllib
+            urllib.request.urlretrieve(repo_url, models_repo_file)
+        except Exception as e:
+            self.log(f"Error downloading model repository: {str(e)}")
+            return False
+        #
+        self.log(f"MHub model repository downloaded to {models_repo_file}")
 
         #
-        self.log(f"MHub model repository downloaded to {repo_path}")
-        return repo_path
-
+        return True
 
     def runContainerSync(self, model, dirIn, dirOut, useGPU=False, containerArguments=None):
         """ Create and run a container of the specified image.
