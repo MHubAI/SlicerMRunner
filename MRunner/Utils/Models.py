@@ -89,6 +89,9 @@ class RepositoryModel:
         type = RepositoryModelType.SEGMENTATION if 'segmentation' in self.data else RepositoryModelType.UNKNOWN
         return type
 
+    def hasGpuSupport(self) -> bool:
+        return 'gpu' in self.data['hwsupport'] and self.data['hwsupport']['gpu']
+
     def getImageRef(self, useGPU: bool = False) -> str:
         REPOSITORY = "mhubai"
         IMAGE_TAG_CUDA = "cuda11.4" # cuda12.0

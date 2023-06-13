@@ -284,8 +284,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             Set the advanced option useUGPU checkbox based on model definition.
         """
 
-        #modelCanUseGPU = model.getDockerfile().isGpuUsable()
-        modelCanUseGPU = True
+        modelCanUseGPU = model.hasGpuSupport()
 
         if not modelCanUseGPU:
             self.ui.gpuCheckBox.checked = False
@@ -309,10 +308,15 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # set button text
         if imageLocallyAvailable and not self.ui.dockerNoCacheCheckBox.checked:
-            self.ui.applyButton.text = "Apply (run model)"
+            self.ui.applyButton.text = "Run model"
         else:
-            self.ui.applyButton.text = "Pull / Build image and Apply (run model)"
+            self.ui.applyButton.text = "Pull image & Run model"
 
+        # indicate gpu selection
+        if self.ui.gpuCheckBox.checked:
+            self.ui.applyButton.text += " (GPU)"
+        else:
+            self.ui.applyButton.text += " (no GPU)"
 
     def updateApplyButtonEnabled(self):
         """ GUI-UPDATE
@@ -527,6 +531,8 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.repo = None
         self.models = None
 
+        self._checkImage__cache = {}
+
 
     def setDefaultParameters(self, parameterNode):
         """
@@ -681,23 +687,29 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         """
         #
         import subprocess
-        
-        #
-        dockerExecPath = self.getDockerExecutable()
-        assert dockerExecPath is not None, "DockerExecPath is None."
 
-        #
-        command =  [dockerExecPath, 'images']
-        command += ['--format', '{{.Repository}}:{{.Tag}}']
+        cache_key = model.getName() + ('--gpu' if useGPU else '--cpu')
+        if not cache_key in self._checkImage__cache:
 
-        # get list of images
-        images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
+            dockerExecPath = self.getDockerExecutable()
+            assert dockerExecPath is not None, "DockerExecPath is None."
 
-        # search image
-        image_ref =  model.getImageRef(useGPU=useGPU) # image_name:image_tag
+            #
+            command =  [dockerExecPath, 'images']
+            command += ['--format', '{{.Repository}}:{{.Tag}}']
 
-        #
-        return image_ref in images_lst
+            # get list of images
+            images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
+
+            # search image
+            image_ref =  model.getImageRef(useGPU=useGPU) # image_name:image_tag
+
+            #
+            self._checkImage__cache[cache_key] = image_ref in images_lst
+
+        else: 
+            print(f"checkImage: Image {model.getName()} found in cache at {cache_key} --> {self._checkImage__cache[cache_key]}.")
+            return self._checkImage__cache[cache_key]
 
 
     def pullImage(self, model, useGPU = False):
