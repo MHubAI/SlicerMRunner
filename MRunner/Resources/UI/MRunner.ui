@@ -234,10 +234,10 @@
       <item row="3" column="1">
        <widget class="QCheckBox" name="dockerNoCacheCheckBox">
         <property name="toolTip">
-         <string>During execution, we always check if the image is already available on the local system. If it is not, we initiate either a Docker pull or a Docker build after downloading the Dockerfile. If you select this option, a push or build will be forced even if the image is already available locally. If the Download Dockerfile option is enabled, the image is downloaded and built locally with the --no-cache flag set.</string>
+         <string>During execution, we always check if the image is already available on the local system. If it is not, we initiate a Docker pull. If you select this option, the most recent version of the image will be loaded from our Docker hub repository.</string>
         </property>
         <property name="text">
-         <string>(Will rebuild or pull)</string>
+         <string>(Will enforce pulling the image)</string>
         </property>
        </widget>
       </item>
