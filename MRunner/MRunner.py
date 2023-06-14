@@ -430,7 +430,6 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 model               = selectedModel,
                 inputVolume         = self.ui.inputSelector.currentNode(), 
                 outputSegmentation  = self.ui.outputSegmentationSelector.currentNode(),
-                imageThreshold      = self.ui.imageThresholdSliderWidget.value, 
                 useGPU              = self.ui.gpuCheckBox.checked,
                 noCache             = self.ui.dockerNoCacheCheckBox.checked
             )
@@ -836,7 +835,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
                 slicer.mrmlScene.RemoveNode(colorTableNode)
 
 
-    def process(self, model, inputVolume, outputSegmentation, imageThreshold, useGPU=False, noCache=False):
+    def process(self, model, inputVolume, outputSegmentation, useGPU=False, noCache=False):
         """
         Run the processing algorithm.
         Can be used without GUI widget.
