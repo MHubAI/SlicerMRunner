@@ -97,10 +97,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # These connections ensure that whenever user changes some settings on the GUI, that is saved in the MRML scene
         # (in the selected parameter node).
         self.ui.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
-        self.ui.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
         self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
-        #self.ui.outputSegmentationSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.ui.segmentationShow3DButton.setSegmentationNode) # -> causes GetSegmentation() in process to be None on the first apply only
-        self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
         self.ui.gpuCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.dockerNoCacheCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
         self.ui.modelComboBox.currentTextChanged.connect(self.updateParameterNodeFromGUI)
@@ -111,47 +108,41 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       
         # load model repo and display
         self.onUpdateRepoButtonClick()
-
-        # test table view
-        # https://stackoverflow.com/questions/12009134/adding-widgets-to-qtablewidget-pyqt
-        self.ui.modelTableWidget.setRowCount(2)
-        self.ui.modelTableWidget.setColumnCount(3)
-        self.ui.modelTableWidget.setColumnWidth(100, 200)
-        self.ui.modelTableWidget.setItem(0,0, qt.QTableWidgetItem("Name"))
-        self.ui.modelTableWidget.setItem(0,1, qt.QTableWidgetItem("Name"))
-        tbtn = qt.QPushButton(self.ui.modelTableWidget)
-        tbtn.setText('click me')
-        self.ui.modelTableWidget.setCellWidget(0, 2, tbtn)
-        self.ui.modelTableWidget.setVisible(False)
-
-        # progress bar
-        self.ui.progressBar.setVisible(False)
-
-        # test list view
-        self.ui.modelListWidget.addItem("test")
+        
+        ######## # test list view
         self.ui.modelListWidget.setVisible(False)
+        #self.ui.modelListWidget.addItem("test")
+        # exract model names from repo definition and feed into dropdown
+        #for model in self.models.getModels():
+        #    item = qt.QListWidgetItem()
+        #    item_widget = qt.QWidget()
+        #    line_text = qt.QLabel(model.getLabel())
+        #    line_push_button = qt.QPushButton("Pull Image")
+        #    line_push_button.resize(40,22)
+        #    line_push_button.setObjectName(model.getName())
+        #    line_push_button.clicked.connect(self.listItemClick)
+        #    item_layout = qt.QHBoxLayout()
+        #    item_layout.addWidget(line_text)
+        #    item_layout.addWidget(line_push_button)
+        #    item_widget.setLayout(item_layout)
+        #    item.setSizeHint(item_widget.sizeHint)
+        #    self.ui.modelListWidget.addItem(item)
+        #    self.ui.modelListWidget.setItemWidget(item, item_widget)
 
         # Buttons
         self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
         self.ui.advancedCollapsibleButton.collapsed = True
-        self.ui.cmdTest1.connect('clicked(bool)', self.onTest1ButtonClick)
-        self.ui.cmdTest2.connect('clicked(bool)', self.onTest2ButtonClick)
         self.ui.cmdUpdateRepo.connect('clicked(bool)', self.onUpdateRepoButtonClick)
 
         # Image selector
         self.ui.label_8.setVisible(False)
         self.ui.dockerImageSelector.setVisible(False)
 
-        # disable old components (TODO: remove them later)
-        self.ui.imageThresholdSliderWidget.setVisible(False)
-        self.ui.outputSelector.setVisible(False)
-        self.ui.label_2.setVisible(False)
-        self.ui.label_3.setVisible(False)
-        self.ui.cmdTest1.setVisible(False)
-        self.ui.cmdTest2.setVisible(False)
-
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
+
+    def listItemClick(self, item):
+        print(item)
 
     def cleanup(self):
         """
@@ -242,10 +233,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Update node selectors and sliders
         self.ui.inputSelector.setCurrentNode(self._parameterNode.GetNodeReference("InputVolume"))
-        self.ui.outputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolume"))
-        #self.ui.outputSegmentationSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputSegmentation"))
-        #self.ui.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
-        #self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
+        #self.ui.outputSegmentationSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputSegmentation")) # FIXME: why is this not required?
         #self.ui.dockerNoCacheCheckBox.checked = (self._parameterNode.GetParameter("DockerNoCache") == "true")
 
         # get selected model
@@ -310,7 +298,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if imageLocallyAvailable and not self.ui.dockerNoCacheCheckBox.checked:
             self.ui.applyButton.text = "Run model"
         else:
-            self.ui.applyButton.text = "Pull image & Run model"
+            self.ui.applyButton.text = "Pull image and Run model"
 
         # indicate gpu selection
         if self.ui.gpuCheckBox.checked:
@@ -371,8 +359,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         wasModified = self._parameterNode.StartModify()  # Modify all properties in a single batch
 
         self._parameterNode.SetNodeReferenceID("InputVolume", self.ui.inputSelector.currentNodeID)
-        self._parameterNode.SetNodeReferenceID("OutputVolume", self.ui.outputSelector.currentNodeID)
-        self._parameterNode.SetParameter("Threshold", str(self.ui.imageThresholdSliderWidget.value))
+        #self._parameterNode.SetNodeReferenceID("OutputVolume", self.ui.outputSelector.currentNodeID) # FIXME: why not we set the outputSegmentationNode selector here? This was commenetd out but works anyways ^^
         self._parameterNode.SetParameter("UseGPU", "true" if self.ui.gpuCheckBox.checked else "false")
         self._parameterNode.SetParameter("DockerNoCache", "true" if self.ui.dockerNoCacheCheckBox.checked else "false")
 
@@ -468,43 +455,6 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # exract model names from repo definition and feed into dropdown
         for model in self.models.getModels():
             self.ui.modelComboBox.addItem(f"{model.getLabel()}", model)
-
-    def onTest1ButtonClick(self):
-        self.addLog("-- Test 1 (Segmentation names) ------------")
-        print("combo data: ", self.ui.modelComboBox.currentData)
-
-
-    def onTest2ButtonClick(self):
-        self.addLog("-- Test 2 (try import from provided data) ------------")
-
-        # get model selection
-        model = self.ui.modelComboBox.currentData
-        self.addLog(f"-- model: {model.getLabel()}")
-
-        # Create new segmentation node, if not selected yet
-        self.addLog(f"-- creating output segmentation node")
-        if not self.ui.outputSegmentationSelector.currentNode():
-            self.ui.outputSegmentationSelector.addNode()
-            self._parameterNode.SetNodeReferenceID("OutputSegmentation", self.ui.outputSegmentationSelector.currentNodeID)
-
-        outputSegmentation = self.ui.outputSegmentationSelector.currentNode()
-
-        # expected directory
-        dir = "/Users/lenny/Projects/SlicerMHubIntegration/test_data"
-
-        # call logic
-        self.logic.displaySegmentation(outputSegmentation, dir, model)
-
-        inputVolume = self.ui.inputSelector.currentNode()
-        outputSegmentation.SetNodeReferenceID(outputSegmentation.GetReferenceImageGeometryReferenceRole(), inputVolume.GetID())
-        outputSegmentation.SetReferenceImageGeometryParameterFromVolumeNode(inputVolume)
-
-        # Place segmentation node in the same place as the input volume
-        shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
-        inputVolumeShItem = shNode.GetItemByDataNode(inputVolume)
-        studyShItem = shNode.GetItemParent(inputVolumeShItem)
-        segmentationShItem = shNode.GetItemByDataNode(outputSegmentation)
-        shNode.SetItemParent(segmentationShItem, studyShItem)
 
 #
 # MRunnerLogic
