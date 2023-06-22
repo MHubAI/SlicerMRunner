@@ -440,6 +440,9 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onUpdateRepoButtonClick(self):
         from Utils import Models
 
+        # update segDB
+        self.logic.updateSegDB()
+
         # update repo
         if not self.logic.downloadModelrepository():
             return
