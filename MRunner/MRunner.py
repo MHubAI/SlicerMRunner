@@ -107,7 +107,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic.setupPythonRequirements()
       
         # load model repo and display
-        self.onUpdateRepoButtonClick()
+        self.onUpdateRepoButtonClick(reinstallSegDB=False)
         
         ######## # test list view
         self.ui.modelListWidget.setVisible(False)
@@ -437,11 +437,12 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             # reset output segmentation selection
             self.ui.outputSegmentationSelector.setCurrentNode(None)
 
-    def onUpdateRepoButtonClick(self):
+    def onUpdateRepoButtonClick(self, reinstallSegDB=True):
         from Utils import Models
 
         # update segDB
-        self.logic.updateSegDB()
+        if reinstallSegDB:
+            self.logic.updateSegDB()
 
         # update repo
         if not self.logic.downloadModelrepository():
@@ -765,7 +766,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         # iterate segdef
         for file_segdef in segdef:
             file_name = file_segdef["file"]
-            file_labels = [{'labelID': k, 'segmentID': v} for k, v in file_segdef["labels"].items()]
+            file_labels = [{'labelID': int(k), 'segmentID': v} for k, v in file_segdef["labels"].items()]
 
             if len(file_labels) == 1:
                 file_label = file_labels[0]
