@@ -92,12 +92,10 @@ class RepositoryModel:
     def hasGpuSupport(self) -> bool:
         return 'gpu' in self.data['hwsupport'] and self.data['hwsupport']['gpu']
 
-    def getImageRef(self, useGPU: bool = False) -> str:
+    def getImageRef(self) -> str:
         REPOSITORY = "mhubai"
-        IMAGE_TAG_CUDA = "cuda11.4" # cuda12.0
-        IMAGE_TAG_NOCUDA = "nocuda"
+        IMAGE_TAG = "latest"
 
-        image_tag = IMAGE_TAG_CUDA
         image_name = self.getName().lower()
 
-        return f"{REPOSITORY}/{image_name}:{image_tag}"
+        return f"{REPOSITORY}/{image_name}:{IMAGE_TAG}"

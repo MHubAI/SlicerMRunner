@@ -289,7 +289,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # check if docker image is available (not cached)
         try:
-            imageLocallyAvailable = self.logic.checkImage(model, useGPU=self.ui.gpuCheckBox.checked)
+            imageLocallyAvailable = self.logic.checkImage(model, refetchImages=False)
         except:
             imageLocallyAvailable = False
         self._imageLocallyAvailable = imageLocallyAvailable
@@ -484,7 +484,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.repo = None
         self.models = None
 
-        self._checkImage__cache = {}
+        self._dockerImageListCache = None
 
 
     def setDefaultParameters(self, parameterNode):
@@ -634,15 +634,17 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         return True
 
 
-    def checkImage(self, model, useGPU=False):
+    def checkImage(self, model, refetchImages=False) -> bool:
         """Search available docker images. Returns true if the image is available. 
            > docker images --format '{{.Repository}}:{{.Tag}}'
         """
         #
         import subprocess
 
-        cache_key = model.getName() + ('--gpu' if useGPU else '--cpu')
-        if not cache_key in self._checkImage__cache:
+        # get image ref
+        image_ref =  model.getImageRef() # repo/name:latest
+
+        if self._dockerImageListCache is None or refetchImages:
 
             dockerExecPath = self.getDockerExecutable()
             assert dockerExecPath is not None, "DockerExecPath is None."
@@ -654,15 +656,15 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             # get list of images
             images_lst = subprocess.check_output(command).decode('utf-8').split("\n")
 
-            # search image
-            image_ref =  model.getImageRef(useGPU=useGPU) # image_name:image_tag
-
-            #
-            self._checkImage__cache[cache_key] = image_ref in images_lst
+            # set cache
+            self._dockerImageListCache = images_lst
 
         else: 
-            print(f"checkImage: Image {model.getName()} found in cache at {cache_key} --> {self._checkImage__cache[cache_key]}.")
-            return self._checkImage__cache[cache_key]
+            hasImage = "yes" if image_ref in self._dockerImageListCache else "no"
+            print(f"checkImage: Using cache for {image_ref}: {hasImage}")
+
+        # check if image is in list and return 
+        return image_ref in self._dockerImageListCache
 
 
     def pullImage(self, model, useGPU = False):
@@ -678,7 +680,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         assert dockerExecPath is not None, "DockerExecPath is None."
 
         #
-        image_ref = model.getImageRef(useGPU=useGPU)
+        image_ref = model.getImageRef()
         command =  [dockerExecPath, 'pull', image_ref]
 
         # run command
@@ -688,6 +690,9 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         self.logProcessOutput(proc)
         self.log("Image pulled.")
 
+        # update images cache (lazy update)
+        assert self._dockerImageListCache is not None, "Cache must not be uninitialized, image list should've been checked already!"
+        self._dockerImageListCache.append(image_ref)
 
     def downloadModelrepository(self) -> bool:
         """
@@ -730,7 +735,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
             command += ["--gpus", "all"]
 
         # image to create container from
-        command += [model.getImageRef(useGPU=useGPU)]
+        command += [model.getImageRef()]
 
         # slcier entrypoint
         mhub_model_dir = model.getName().lower()
@@ -876,7 +881,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         #image_tag = 'aimi/totalsegmentator:latest' # 'aimi/thresholder' # 'leo/thresholder'
 
         # check / pull image
-        if not self.checkImage(model, useGPU=useGPU) or noCache:
+        if not self.checkImage(model, refetchImages=False) or noCache: # TODO: add button to refetch images.
             self.pullImage(model, useGPU=useGPU)
 
         # run container
