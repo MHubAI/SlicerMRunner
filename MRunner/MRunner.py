@@ -23,7 +23,7 @@ class MRunner(ScriptedLoadableModule):
         self.parent.title = "MRunner"               # TODO: make this more human readable by adding spaces
         self.parent.categories = ["Examples"]       # TODO: set categories (folders where the module shows up in the module selector)
         self.parent.dependencies = []               # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["Leonard Nürnberg (AIM, BWH, UM)"]  # TODO: replace with "Firstname Lastname (Organization)"
+        self.parent.contributors = ["Leonard Nuernberg (AIM, BWH, UM)"]  # TODO: replace with "Firstname Lastname (Organization)"
         
         # TODO: update with short description of the module and a link to online module documentation
         self.parent.helpText = """
@@ -37,7 +37,7 @@ If you need help installing or setting up Docker on your machine, you can find a
 """
         # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = """
-This extension was originally developed by Leonard Nürnberg (Artificial Intelligence in Medicine Program, Harvard University / Mass General Brigham) with Dockerfiles created by Dennis Bontempi (Artificial Intelligence in Medicine Program, Harvard University / Mass General Brigham). <br/>
+This extension was originally developed by Leonard Nuernberg (Artificial Intelligence in Medicine Program, Harvard University / Mass General Brigham) with Dockerfiles created by Dennis Bontempi (Artificial Intelligence in Medicine Program, Harvard University / Mass General Brigham). <br/>
 Find out more about the mhub.ai project on the <a href="https://mhub.ai">mhub.ai website</a> and <a href="https://github.com/AIM-Harvard/mhub">GitHub repository</a>.
 """
 
@@ -449,7 +449,7 @@ class MRunnerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             return
 
         # load repo definition and pass down to logic
-        self.models = Models.Repository(self.resourcePath('Dockerfiles/models.json'))
+        self.models = Models.Repository(self.resourcePath('MHub/models.json'))
         self.logic.models = self.models
 
         # clean
@@ -703,7 +703,7 @@ class MRunnerLogic(ScriptedLoadableModuleLogic):
         repo_url = 'https://mhub.ai/api/slicer.php'
 
         # create temp folder 
-        models_repo_file = self.resourcePath('Dockerfiles/models.json')
+        models_repo_file = self.resourcePath('MHub/models.json')
 
         # download file 
         try:
